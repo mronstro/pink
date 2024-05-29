@@ -52,13 +52,15 @@ rondb_connect(const char *connect_string,
     {
       return -1;
     }
+    printf("Connected to cluster\n");
     if (rondb_conn[i]->wait_until_ready(30,0) != 0)
     {
       return -1;
     }
+    printf("Connected to started cluster\n");
     for (unsigned int j = 0; j < MAX_NDB_PER_CONNECTION; j++)
     {
-      Ndb *ndb = new Ndb(rondb_conn[i], "redisEA");
+      Ndb *ndb = new Ndb(rondb_conn[i], "redis_0");
       if (ndb == nullptr)
       {
         return -1;
@@ -67,6 +69,7 @@ rondb_connect(const char *connect_string,
       {
         return -1;
       }
+      printf("Created Ndb object %p into (%u,%u)\n", ndb, i, j);
       rondb_ndb[i][j] = ndb;
     }
   }
@@ -251,41 +254,50 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
     return -1;
   }
   Ndb *ndb = rondb_ndb[0][0];
+  printf("Kilroy VI\n");
   const char *key_str = argv[1].c_str();
   unsigned int key_len = strlen(key_str);
+  printf("Kilroy VII\n");
   const char *value_str = argv[2].c_str();
   unsigned int value_len = strlen(value_str);
+  printf("Kilroy VIII\n");
   const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  printf("Kilroy IX\n");
   const NdbDictionary::Table *tab = dict->getTable("redis_main");
   if (tab == nullptr)
   {
     printf("Kilroy V\n");
     return -1;
   }
+  printf("Kilroy X\n");
   Uint64 key_id;
   if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
     printf("Kilroy IV\n");
     return -1;
   }
+  printf("Kilroy XI\n");
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
     printf("Kilroy III\n");
     return -1;
   }
+  printf("Kilroy XII\n");
   NdbOperation *op = trans->getNdbOperation(tab);
   if (op == nullptr)
   {
     printf("Kilroy II\n");
     return -1;
   }
+  printf("Kilroy XIII\n");
   op->insertTuple();
   op->equal("key", key_str, key_len);
   op->equal("version_id", 0);
   op->setValue("key_id", key_id);
   op->setValue("value", value_str, value_len);
   op->setValue("this_value_len", value_len);
+  printf("Kilroy XIV\n");
   op->setValue("tot_value_len", value_len);
   op->setValue("value_rows", 0);
   op->setValue("field_rows", 0);
