@@ -290,7 +290,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   {
     if (ndb->getNdbError().code == 626)
     {
-      if (ndb->setAutoIncrementValue(tab, UInt64(1), false) != 0)
+      if (ndb->setAutoIncrementValue(tab, Uint64(1), false) != 0)
       {
         printf("Kilroy IV: error: %d\n", ndb->getNdbError().code);
         return -1;
