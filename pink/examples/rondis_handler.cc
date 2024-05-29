@@ -95,7 +95,7 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
     {
       return rondb_get_command(argv, response, fd);
     }
-    else if (memcmp(cmd_str, set_str, 3)
+    else if (memcmp(cmd_str, set_str, 3) == 0)
     {
       return rondb_get_command(argv, response, fd);
     }
