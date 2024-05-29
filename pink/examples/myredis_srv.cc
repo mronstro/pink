@@ -8,7 +8,12 @@
 #include "pink/include/pink_conn.h"
 #include "pink/include/redis_conn.h"
 #include "pink/include/pink_thread.h"
-#include "pink/examples/rondis_handler.h"
+
+int rondb_connect(const char *conn_string, unsigned num_connections);
+void rondb_end();
+int rondb_redis_handler(RedisCmdArgsType& argv,
+                        std::string* response,
+                        int fd);
 
 using namespace pink;
 
