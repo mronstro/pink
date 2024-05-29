@@ -321,8 +321,8 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   op->insertTuple();
   char varsize_param[29000];
   memcpy(&varsize_param[2], key_str, key_len);
-  key_param[0] = key_len & 255;
-  key_param[1] = key_len >> 8;
+  varsize_param[0] = key_len & 255;
+  varsize_param[1] = key_len >> 8;
   if (op->equal("redis_key", &varsize_param[0]) != 0)
   {
     printf("Kilroy EXV, error: %d\n", op->getNdbError().code);
