@@ -139,8 +139,8 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * All Redis tables will have the same format.
  CREATE TABLE redis_main(
    redis_key VARBINARY(3000) NOT NULL,
-   key_id BIGINT NOT NULL,
-   version_id BIGINT NOT NULL,
+   key_id BIGINT UNSIGNED NOT NULL,
+   version_id BIGINT UNSIGNED NOT NULL,
    expiry_date INT UNSIGNED NOT NULL,
    redis_value VARBINARY(26000) NOT NULL,
    this_value_len INT UNSIGNED NOT NULL,
@@ -328,7 +328,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
     printf("Kilroy EXV, error: %d\n", op->getNdbError().code);
     return -1;
   }
-  op->equal("version_id", 0);
+  op->equal("version_id", Uint64(0));
   op->setValue("key_id", key_id);
 
   memcpy(&varsize_param[2], value_str, value_len);
