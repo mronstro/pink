@@ -24,6 +24,14 @@
 #include "pink/include/redis_conn.h"
 #include <ndbapi/NdbApi.hpp>
 
+int
+rondb_get_command(pink::RedisCmdArgsType&,
+                  std::string* response,
+                  int fd);
+int
+rondb_set_command(pink::RedisCmdArgsType&,
+                  std::string* response,
+                  int fd);
 #define MAX_CONNECTIONS 1
 #define MAX_NDB_PER_CONNECTION 1
 Ndb_cluster_connection *rondb_conn[MAX_CONNECTIONS];
@@ -37,11 +45,11 @@ rondb_connect(const char *connect_string,
   for (unsigned int i = 0; i < MAX_CONNECTIONS; i++)
   {
     rondb_conn[i] = new Ndb_cluster_connection(connect_string);
-    if (rondb_conn[i].connect() != 0)
+    if (rondb_conn[i]->connect() != 0)
     {
       return -1;
     }
-    if (rondb_conn[i].wait_until_ready(30,0) != 0)
+    if (rondb_conn[i]->wait_until_ready(30,0) != 0)
     {
       return -1;
     }
@@ -52,7 +60,7 @@ rondb_connect(const char *connect_string,
       {
         return -1;
       }
-      if (ndb.init() != 0)
+      if (ndb->init() != 0)
       {
         return -1;
       }
@@ -64,7 +72,7 @@ rondb_connect(const char *connect_string,
 
 void rondb_end()
 {
-  ndb_end();
+  ndb_end(0);
 }
 
 int
@@ -80,11 +88,13 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
   unsigned int cmd_len = strlen(cmd_str);
   if (cmd_len == 3)
   {
-    if (memcmp(cmd_str, "get", 3) == 0)
+    const char *set_str = "set";
+    const char *get_str = "get";
+    if (memcmp(cmd_str, get_str, 3) == 0)
     {
       return rondb_get_command(argv, response, fd);
     }
-    else if (memcmp(cmd_str, "set", 3)
+    else if (memcmp(cmd_str, set_str, 3)
     {
       return rondb_get_command(argv, response, fd);
     }
@@ -212,7 +222,7 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * optimisation isn't used.
  */
 int
-rondb_get_command(pink::RedisCmdArgsType&,
+rondb_get_command(pink::RedisCmdArgsType& argv,
                   std::string* response,
                   int fd)
 {
@@ -226,7 +236,7 @@ rondb_get_command(pink::RedisCmdArgsType&,
 }
 
 int
-rondb_set_command(pink::RedisCmdArgsType&,
+rondb_set_command(pink::RedisCmdArgsType& argv,
                   std::string* response,
                   int fd)
 {
@@ -246,7 +256,7 @@ rondb_set_command(pink::RedisCmdArgsType&,
     return -1;
   }
   Uint64 key_id;
-  if (ndb->getAutoIncrementValue(tab, &key_id, unsigned(1024)) != 0)
+  if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
     return -1;
   }
