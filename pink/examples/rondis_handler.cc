@@ -319,14 +319,14 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   }
   printf("Kilroy XIII, key: %s, key_len: %u\n", key_str, key_len);
   op->insertTuple();
-  if (op->equal("key", key_str, key_len) != 0)
+  if (op->equal("redis_key", key_str, key_len) != 0)
   {
     printf("Kilroy EXV, error: %d\n", op->getNdbError().code);
     return -1;
   }
   op->equal("version_id", 0);
   op->setValue("key_id", key_id);
-  op->setValue("value", value_str, value_len);
+  op->setValue("redis_value", value_str, value_len);
   op->setValue("this_value_len", value_len);
   printf("Kilroy XIV\n");
   if (op->setValue("tot_value_len", value_len) != 0)
