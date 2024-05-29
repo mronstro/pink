@@ -334,7 +334,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   memcpy(&varsize_param[2], value_str, value_len);
   varsize_param[0] = value_len & 255;
   varsize_param[1] = value_len >> 8;
-  op->setValue("redis_value", %varsize_param[0], value_len);
+  op->setValue("redis_value", &varsize_param[0], value_len);
 
   op->setValue("this_value_len", value_len);
   printf("Kilroy XIV\n");
