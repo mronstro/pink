@@ -56,7 +56,7 @@ redis_cli_test: redis_cli_test.cc
 simple_http_server: simple_http_server.cc
 	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-myredis_srv: myredis_srv.cc
+myredis_srv: myredis_srv.cc rondis_handler.cc
 	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
 #myproto.pb.cc: myproto.proto
