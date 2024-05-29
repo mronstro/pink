@@ -262,10 +262,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   {
     return -1;
   }
-  Key_part_ptr key_part;
-  key_part.ptr = key_str;
-  key_part.len = key_len;
-  NdbTransaction *trans = ndb->startTransaction(tab, &key_part);
+  NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
     return -1;
