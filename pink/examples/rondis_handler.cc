@@ -334,7 +334,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   printf("Execute transaction\n");
   if (trans->execute(NdbTransaction::Commit) != 0)
   {
-    printf("Kilroy I\n");
+    printf("Kilroy I, error: %d\n", trans->getNdbError().code);
     return -1;
   }
   ndb->closeTransaction(trans);
