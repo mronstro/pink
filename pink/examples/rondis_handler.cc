@@ -317,11 +317,11 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
     printf("Kilroy II\n");
     return -1;
   }
-  printf("Kilroy XIII\n");
+  printf("Kilroy XIII, key: %s, key_len: %u\n", key_str, key_len);
   op->insertTuple();
   if (op->equal("key", key_str, key_len) != 0)
   {
-    printf("Kilroy EXV\n");
+    printf("Kilroy EXV, error: %d\n", op->getNdbError().code);
     return -1;
   }
   op->equal("version_id", 0);
