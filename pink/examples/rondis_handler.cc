@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 #include <string.h>
+#include <stdio.h>
 #include "pink/include/redis_conn.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/Ndb.hpp>
@@ -57,7 +58,7 @@ rondb_connect(const char *connect_string,
     }
     for (unsigned int j = 0; j < MAX_NDB_PER_CONNECTION; j++)
     {
-      Ndb *ndb = new Ndb(rondb_conn[i], "redis_0");
+      Ndb *ndb = new Ndb(rondb_conn[i], "redisEA");
       if (ndb == nullptr)
       {
         return -1;
@@ -118,22 +119,24 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * the database used in Redis.
  *
  * All Redis tables will have the same format.
- * CREATE TABLE redis_main(
- *   key VARBINARY(3000),
- *   key_id BIGINT,
- *   version_id BIGINT,
- *   expiry_date DATETIME,
- *   value VARBINARY(26000),
- *   this_value_len UNSIGNED INT,
- *   tot_value_len UNSIGNED INT,
- *   value_rows UNSIGNED INT,
- *   field_rows UNSIGNED INT,
- *   row_state UNSIGNED INT,
- *   tot_key_len UNSIGNED INT)
- *   PARTITION BY KEY (key),
- *   PRIMARY KEY USING HASH (key),
- *   KEY(expiry_date)
- * ENGINE NDB COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ CREATE TABLE redis_main(
+   redis_key VARBINARY(3000) NOT NULL,
+   key_id BIGINT NOT NULL,
+   version_id BIGINT NOT NULL,
+   expiry_date INT UNSIGNED NOT NULL,
+   redis_value VARBINARY(26000) NOT NULL,
+   this_value_len INT UNSIGNED NOT NULL,
+   tot_value_len INT UNSIGNED NOT NULL,
+   value_rows INT UNSIGNED NOT NULL,
+   field_rows INT UNSIGNED NOT NULL,
+   row_state INT UNSIGNED NOT NULL,
+   tot_key_len INT UNSIGNED NOT NULL,
+   PRIMARY KEY (redis_key) USING HASH,
+   KEY expiry_index(expiry_date))
+   ENGINE NDB
+   CHARSET=latin1
+   COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM_X_8"
+   PARTITION BY KEY (redis_key)
  *
  * The redis_main table is the starting point for key-value
  * objects, for hashes and other data structures in Redis.
@@ -242,6 +245,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
                   std::string* response,
                   int fd)
 {
+  printf("Found a set command with %d arguments\n", argv.size());
   if (argv.size() < 3)
   {
     return -1;
@@ -255,21 +259,25 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   const NdbDictionary::Table *tab = dict->getTable("redis_main");
   if (tab == nullptr)
   {
+    printf("Kilroy V\n");
     return -1;
   }
   Uint64 key_id;
   if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
+    printf("Kilroy IV\n");
     return -1;
   }
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
+    printf("Kilroy III\n");
     return -1;
   }
   NdbOperation *op = trans->getNdbOperation(tab);
   if (op == nullptr)
   {
+    printf("Kilroy II\n");
     return -1;
   }
   op->insertTuple();
@@ -284,8 +292,10 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   op->setValue("tot_key_len", value_len);
   op->setValue("row_state", 0);
   op->setValue("expiry_date", 0);
+  printf("Execute transaction\n");
   if (trans->execute(NdbTransaction::Commit) != 0)
   {
+    printf("Kilroy I\n");
     return -1;
   }
   ndb->closeTransaction(trans);
