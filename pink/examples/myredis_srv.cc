@@ -96,6 +96,12 @@ static void SignalSetup() {
 }
 
 int main(int argc, char* argv[]) {
+  SignalSetup();
+
+  printf("Connecting to RonDB\n");
+  rondb_connect("localhost:13000", 1);
+  printf("Connected to RonDB\n");
+
   if (argc < 2) {
     printf("server will listen to 6379\n");
   } else {
@@ -103,14 +109,8 @@ int main(int argc, char* argv[]) {
   }
   int my_port = (argc > 1) ? atoi(argv[1]) : 6379;
 
-  printf("SignalSetup\n");
-  SignalSetup();
-
   printf("Create MyConnFactory\n");
   ConnFactory *conn_factory = new MyConnFactory();
-
-  printf("rondb_connect\n");
-  rondb_connect("localhost:13001", 1);
 
   printf("Create HolyThread\n");
   ServerThread* my_thread = NewHolyThread(my_port, conn_factory, 1000);
