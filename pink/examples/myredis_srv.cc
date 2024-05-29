@@ -113,12 +113,12 @@ int main(int argc, char* argv[]) {
     printf("StartThread error happened!\n");
     exit(-1);
   }
-  rondb_end();
   running.store(true);
   while (running.load()) {
     sleep(1);
   }
   my_thread->StopThread();
+  rondb_end();
 
   delete my_thread;
   delete conn_factory;

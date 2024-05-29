@@ -106,6 +106,15 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
     }
     return -1;
   }
+  else if (cmd_len == 1)
+  {
+    const char *shutdown_str = "shutdown";
+    if (memcmp(cmd_str, shutdown_str, 8) == 0)
+    {
+      printf("Shutdown Rondis server\n);
+      return -1;
+    }
+  }
   return -1;
 }
 
