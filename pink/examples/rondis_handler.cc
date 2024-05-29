@@ -24,6 +24,7 @@
 #include <string.h>
 #include "pink/include/redis_conn.h"
 #include <ndbapi/NdbApi.hpp>
+#include <ndbapi/Ndb.hpp>
 
 int
 rondb_get_command(pink::RedisCmdArgsType&,
