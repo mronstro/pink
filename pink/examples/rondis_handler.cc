@@ -57,7 +57,7 @@ rondb_connect(const char *connect_string,
     }
     for (unsigned int j = 0; j < MAX_NDB_PER_CONNECTION; j++)
     {
-      Ndb *ndb = new Ndb(rondb_conn[i], "0");
+      Ndb *ndb = new Ndb(rondb_conn[i], "redis_0");
       if (ndb == nullptr)
       {
         return -1;
