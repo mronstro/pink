@@ -22,11 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 #include "pink/include/redis_conn.h"
-#include <NdbApi.hpp>
+#include <ndbapi/NdbApi.hpp>
 
 #define MAX_CONNECTIONS 1
 #define MAX_NDB_PER_CONNECTION 1
-Ndb_cluster_connection *rondb_connect[MAX_CONNECTIONS];
+Ndb_cluster_connection *rondb_conn[MAX_CONNECTIONS];
 Ndb *rondb_ndb[MAX_CONNECTIONS][MAX_NDB_PER_CONNECTION];
 
 int
@@ -36,18 +36,18 @@ rondb_connect(const char *connect_string,
   ndb_init();
   for (unsigned int i = 0; i < MAX_CONNECTIONS; i++)
   {
-    rondb_connect[i] = new Ndb_cluster_connection(connect_string);
-    if (rondb_connect[i].connect() != 0)
+    rondb_conn[i] = new Ndb_cluster_connection(connect_string);
+    if (rondb_conn[i].connect() != 0)
     {
       return -1;
     }
-    if (rondb_connect[i].wait_until_ready(30,0) != 0)
+    if (rondb_conn[i].wait_until_ready(30,0) != 0)
     {
       return -1;
     }
     for (unsigned int j = 0; j < MAX_NDB_PER_CONNECTION; j++)
     {
-      Ndb *ndb = new Ndb(rondb_connect[i], "0");
+      Ndb *ndb = new Ndb(rondb_conn[i], "0");
       if (ndb == nullptr)
       {
         return -1;
@@ -234,7 +234,7 @@ rondb_set_command(pink::RedisCmdArgsType&,
   {
     return -1;
   }
-  Ndb *ndb = rondb_ndb…[0][0];
+  Ndb *ndb = rondb_ndb[0][0];
   const char *key_str = argv[1].c_str();
   unsigned int key_len = strlen(key_str);
   const char *value_str = argv[2].c_str();
