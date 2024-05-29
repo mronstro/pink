@@ -21,6 +21,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+#include <NdbApi.hpp>
+
+#define MAX_CONNECTIONS 16
+#define MAX_NDB_PER_CONNECTION 128
+Ndb_cluster_connection *rondb_connect[MAX_CONNECTIONS];
+Ndb *rondb_ndb[MAX_CONNECTIONS][MAX_NDB_PER_CONNECTION];
+
+int
+rondb_connect(const char *connect_string,
+              unsigned int num_connections)
+{
+  ndb_init();
+  for (unsigned int i = 0; i < MAX_CONNECTIONS; i++)
+  {
+    rondb_connect[i] = new Ndb_cluster_connection(connect_string);
+    if (rondb_connect[i].connect() != 0)
+    {
+      return -1;
+    }
+    if (rondb_connect[i].wait_until_ready(30,0) != 0)
+    {
+      return -1;
+    }
+    for (unsigned int j = 0; j < MAX_NDB_PER_CONNECTION; j++)
+    {
+      Ndb *ndb = new Ndb(rondb_connect[i], "0");
+      if (ndb == nullptr)
+      {
+        return -1;
+      }
+      if (ndb.init() != 0)
+      {
+        return -1;
+      }
+      rondb_ndb[i][j] = ndb;
+    }
+  }
+  return 0;
+}
+
+void rondb_end()
+{
+  ndb_end();
+}
 
 int
 rondb_redis_handler(RedisCmdArgsType& argv,
@@ -189,9 +233,51 @@ rondb_set_command(RedisCmdArgsType&,
   {
     return -1;
   }
+  Ndb *ndb = rondb_ndb…[0][0];
   const char *key_str = argv[1].c_str();
   unsigned int key_len = strlen(key_str);
   const char *value_str = argv[2].c_str();
   unsigned int value_len = strlen(value_str);
+  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Table *tab = dict->getTable("redis_main");
+  if (tab == nullptr)
+  {
+    return -1;
+  }
+  Uint64 key_id;
+  if (ndb->getAutoIncrementValue(tab, &key_id, unsigned(1024)) != 0)
+  {
+    return -1;
+  }
+  Key_part_ptr key_part;
+  key_part.ptr = key_str;
+  key_part.len = key_len;
+  NdbTransaction *trans = ndb->startTransaction(tab, &key_part);
+  if (trans == nullptr)
+  {
+    return -1;
+  }
+  NdbOperation *op = trans->getNdbOperation(tab);
+  if (op == nullptr)
+  {
+    return -1;
+  }
+  op->insertTuple();
+  op->equal("key", key_str, key_len);
+  op->equal("version_id", 0);
+  op->setValue("key_id", key_id);
+  op->setValue("value", value_str, value_len);
+  op->setValue("this_value_len", value_len);
+  op->setValue("tot_value_len", value_len);
+  op->setValue("value_rows", 0);
+  op->setValue("field_rows", 0);
+  op->setValue("tot_key_len", value_len);
+  op->setValue("row_state", 0);
+  op->setValue("expiry_date", 0);
+  if (trans->execute(NdbTransaction::Commit) != 0)
+  {
+    return -1;
+  }
+  ndb->closeTransaction(trans);
   return 0;
 }
