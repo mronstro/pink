@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+#include "pink/include/redis_conn.h"
 #include <NdbApi.hpp>
 
 #define MAX_CONNECTIONS 1
@@ -67,7 +68,7 @@ void rondb_end()
 }
 
 int
-rondb_redis_handler(RedisCmdArgsType& argv,
+rondb_redis_handler(pink::RedisCmdArgsType& argv,
                     std::string* response,
                     int fd)
 {
@@ -211,7 +212,7 @@ rondb_redis_handler(RedisCmdArgsType& argv,
  * optimisation isn't used.
  */
 int
-rondb_get_command(RedisCmdArgsType&,
+rondb_get_command(pink::RedisCmdArgsType&,
                   std::string* response,
                   int fd)
 {
@@ -225,7 +226,7 @@ rondb_get_command(RedisCmdArgsType&,
 }
 
 int
-rondb_set_command(RedisCmdArgsType&,
+rondb_set_command(pink::RedisCmdArgsType&,
                   std::string* response,
                   int fd)
 {

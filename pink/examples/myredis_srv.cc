@@ -11,7 +11,7 @@
 
 int rondb_connect(const char *conn_string, unsigned num_connections);
 void rondb_end();
-int rondb_redis_handler(RedisCmdArgsType& argv,
+int rondb_redis_handler(pink::RedisCmdArgsType& argv,
                         std::string* response,
                         int fd);
 
