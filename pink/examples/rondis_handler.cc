@@ -23,8 +23,8 @@
 */
 #include <NdbApi.hpp>
 
-#define MAX_CONNECTIONS 16
-#define MAX_NDB_PER_CONNECTION 128
+#define MAX_CONNECTIONS 1
+#define MAX_NDB_PER_CONNECTION 1
 Ndb_cluster_connection *rondb_connect[MAX_CONNECTIONS];
 Ndb *rondb_ndb[MAX_CONNECTIONS][MAX_NDB_PER_CONNECTION];
 
@@ -279,5 +279,6 @@ rondb_set_command(RedisCmdArgsType&,
     return -1;
   }
   ndb->closeTransaction(trans);
+  response->append("+OK\r\n");
   return 0;
 }

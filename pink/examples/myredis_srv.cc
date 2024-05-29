@@ -8,6 +8,7 @@
 #include "pink/include/pink_conn.h"
 #include "pink/include/redis_conn.h"
 #include "pink/include/pink_thread.h"
+#include "pink/examples/rondis_handler.h"
 
 using namespace pink;
 
@@ -38,6 +39,7 @@ int MyConn::DealMessage(RedisCmdArgsType& argv, std::string* response) {
     printf("%s ", argv[i].c_str());
   }
   printf("\n");
+  return rondb_redis_handler(argv, response, 0);
 
   std::string val = "result";
   std::string res;
@@ -101,10 +103,12 @@ int main(int argc, char* argv[]) {
   ConnFactory *conn_factory = new MyConnFactory();
 
   ServerThread* my_thread = NewHolyThread(my_port, conn_factory, 1000);
+  rondb_connect("localhost:13001", 1);
   if (my_thread->StartThread() != 0) {
     printf("StartThread error happened!\n");
     exit(-1);
   }
+  rondb_end();
   running.store(true);
   while (running.load()) {
     sleep(1);
