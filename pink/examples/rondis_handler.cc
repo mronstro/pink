@@ -288,8 +288,20 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   Uint64 key_id;
   if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
-    printf("Kilroy IV: error: %d\n", ndb->getNdbError().code);
-    return -1;
+    if (ndb->getNdbError().code == 626)
+    {
+      if (ndb->setAutoIncrementValue(tab, UInt64(1), false) != 0)
+      {
+        printf("Kilroy IV: error: %d\n", ndb->getNdbError().code);
+        return -1;
+      }
+      key_id = Uint64(1);
+    }
+    else
+    {
+      printf("Kilroy EIV: error: %d\n", ndb->getNdbError().code);
+      return -1;
+    }
   }
   printf("Kilroy XI\n");
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
