@@ -50,13 +50,13 @@ rondb_connect(const char *connect_string,
     rondb_conn[i] = new Ndb_cluster_connection(connect_string);
     if (rondb_conn[i]->connect() != 0)
     {
-      printf("Kilroy C\n);
+      printf("Kilroy C\n");
       return -1;
     }
     printf("Connected to cluster\n");
     if (rondb_conn[i]->wait_until_ready(30,0) != 0)
     {
-      printf("Kilroy CI\n);
+      printf("Kilroy CI\n");
       return -1;
     }
     printf("Connected to started cluster\n");
@@ -65,12 +65,12 @@ rondb_connect(const char *connect_string,
       Ndb *ndb = new Ndb(rondb_conn[i], "redis_0");
       if (ndb == nullptr)
       {
-        printf("Kilroy CII\n);
+        printf("Kilroy CII\n");
         return -1;
       }
       if (ndb->init() != 0)
       {
-        printf("Kilroy CIII\n);
+        printf("Kilroy CIII\n");
         return -1;
       }
       printf("Created Ndb object %p into (%u,%u)\n", ndb, i, j);
