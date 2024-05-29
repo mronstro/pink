@@ -288,7 +288,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   Uint64 key_id;
   if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
-    printf("Kilroy IV: error: %d\n", ndb->getNdbError());
+    printf("Kilroy IV: error: %d\n", ndb->getNdbError().code);
     return -1;
   }
   printf("Kilroy XI\n");
