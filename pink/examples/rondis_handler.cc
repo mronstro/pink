@@ -47,6 +47,7 @@ rondb_connect(const char *connect_string,
   ndb_init();
   for (unsigned int i = 0; i < MAX_CONNECTIONS; i++)
   {
+    printf("Kilroy M\n");
     rondb_conn[i] = new Ndb_cluster_connection(connect_string);
     if (rondb_conn[i]->connect() != 0)
     {
@@ -77,6 +78,7 @@ rondb_connect(const char *connect_string,
       rondb_ndb[i][j] = ndb;
     }
   }
+  printf("Kilroy MI\n");
   return 0;
 }
 
