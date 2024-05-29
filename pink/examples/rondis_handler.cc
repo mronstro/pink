@@ -347,15 +347,39 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
     return -1;
   }
   op->setValue("value_rows", 0);
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   op->setValue("field_rows", 0);
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   op->setValue("tot_key_len", value_len);
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   op->setValue("row_state", 0);
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   if (op->setValue("expiry_date", 0) != 0)
   {
     printf("Kilroy EXVII, error: %d\n", op->getNdbError().code);
     return -1;
   }
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   printf("Execute transaction\n");
+  if (trans->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+  }
   if (trans->execute(NdbTransaction::Commit) != 0)
   {
     printf("Kilroy I, error: %d\n", trans->getNdbError().code);
