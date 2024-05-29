@@ -1,10 +1,10 @@
 CXX=g++
 LDFLAGS= -lpthread -lrt -lprotobuf
-CXXFLAGS=-O2 -std=c++11 -fno-builtin-memcmp -msse -msse4.2
+CXXFLAGS=-O2 -std=c++11 -fno-builtin-memcmp
 
 .PHONY: clean all
 
-all: bg_thread http_server mydispatch_srv myholy_srv myholy_srv_chandle myproto_cli \
+all: bg_thread http_server \
 	redis_cli_test simple_http_server myredis_srv
 
 ifndef PINK_PATH
@@ -21,9 +21,12 @@ endif
 SLASH_INCLUDE_DIR=$(SLASH_PATH)
 SLASH_LIBRARY=$(SLASH_PATH)/slash/lib/libslash.a
 
-CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR)
+RONDB_INCLUDE_DIR=$(RONDB_PATH)/include
+RONDB_LIBRARY=$(RONDB_PATH)/lib/libndbclient_static.a
 
-DEP_LIBS = $(PINK_LIBRARY) $(SLASH_LIBRARY)
+CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I(RONDB_INCLUDE_DIR)
+
+DEP_LIBS = $(PINK_LIBRARY) $(SLASH_LIBRARY) $(RONDB_LIBRARY)
 LDFLAGS := $(DEP_LIBS) $(LDFLAGS)
 
 bg_thread: bg_thread.cc
@@ -35,17 +38,17 @@ http_server: http_server.cc
 https_server: https_server.cc
 	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-mydispatch_srv: mydispatch_srv.cc myproto.pb.cc
-	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
+#mydispatch_srv: mydispatch_srv.cc myproto.pb.cc
+#	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-myholy_srv: myholy_srv.cc myproto.pb.cc
-	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
+#myholy_srv: myholy_srv.cc myproto.pb.cc
+#	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-myholy_srv_chandle: myholy_srv_chandle.cc myproto.pb.cc
-	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
+#myholy_srv_chandle: myholy_srv_chandle.cc myproto.pb.cc
+#	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-myproto_cli: myproto_cli.cc myproto.pb.cc
-	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
+#myproto_cli: myproto_cli.cc myproto.pb.cc
+#	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
 redis_cli_test: redis_cli_test.cc
 	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
@@ -56,8 +59,8 @@ simple_http_server: simple_http_server.cc
 myredis_srv: myredis_srv.cc
 	$(CXX) $(CXXFLAGS) $^ -o$@ $(LDFLAGS)
 
-myproto.pb.cc: myproto.proto
-	protoc -I=. --cpp_out=. ./$^
+#myproto.pb.cc: myproto.proto
+# protoc -I=. --cpp_out=. ./$^
 
 clean:
 	find . -name "*.[oda]" -exec rm -f {} \;
