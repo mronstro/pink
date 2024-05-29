@@ -334,8 +334,11 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   memcpy(&varsize_param[2], value_str, value_len);
   varsize_param[0] = value_len & 255;
   varsize_param[1] = value_len >> 8;
-  op->setValue("redis_value", &varsize_param[0], value_len);
-
+  if (op->setValue("redis_value", &varsize_param[0], value_len) != 0)
+  {
+    printf("Kilroy EXVI, error: %d\n", op->getNdbError().code);
+    return -1;
+  }
   op->setValue("this_value_len", value_len);
   printf("Kilroy XIV\n");
   if (op->setValue("tot_value_len", value_len) != 0)
@@ -347,7 +350,11 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   op->setValue("field_rows", 0);
   op->setValue("tot_key_len", value_len);
   op->setValue("row_state", 0);
-  op->setValue("expiry_date", 0);
+  if (op->setValue("expiry_date", 0) != 0)
+  {
+    printf("Kilroy EXVII, error: %d\n", op->getNdbError().code);
+    return -1;
+  }
   printf("Execute transaction\n");
   if (trans->execute(NdbTransaction::Commit) != 0)
   {
