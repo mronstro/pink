@@ -47,7 +47,6 @@ rondb_connect(const char *connect_string,
   ndb_init();
   for (unsigned int i = 0; i < MAX_CONNECTIONS; i++)
   {
-    printf("Kilroy M\n");
     rondb_conn[i] = new Ndb_cluster_connection(connect_string);
     if (rondb_conn[i]->connect() != 0)
     {
@@ -74,11 +73,9 @@ rondb_connect(const char *connect_string,
         printf("Kilroy CIII\n");
         return -1;
       }
-      printf("Created Ndb object %p into (%u,%u)\n", ndb, i, j);
       rondb_ndb[i][j] = ndb;
     }
   }
-  printf("Kilroy MI\n");
   return 0;
 }
 
@@ -137,24 +134,22 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * the database used in Redis.
  *
  * All Redis tables will have the same format.
- CREATE TABLE redis_main(
+ CREATE TABLE redis_main_key(
    redis_key VARBINARY(3000) NOT NULL,
-   key_id BIGINT UNSIGNED NOT NULL,
-   version_id BIGINT UNSIGNED NOT NULL,
+   key_id BIGINT UNSIGNED,
    expiry_date INT UNSIGNED NOT NULL,
-   redis_value VARBINARY(26000) NOT NULL,
-   this_value_len INT UNSIGNED NOT NULL,
+   redis_value VARBINARY(26500) NOT NULL,
    tot_value_len INT UNSIGNED NOT NULL,
    value_rows INT UNSIGNED NOT NULL,
    field_rows INT UNSIGNED NOT NULL,
    row_state INT UNSIGNED NOT NULL,
    tot_key_len INT UNSIGNED NOT NULL,
    PRIMARY KEY (redis_key) USING HASH,
+   UNIQUE KEY (key_id),
    KEY expiry_index(expiry_date))
    ENGINE NDB
    CHARSET=latin1
    COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM_X_8"
-   PARTITION BY KEY (redis_key)
  *
  * The redis_main table is the starting point for key-value
  * objects, for hashes and other data structures in Redis.
@@ -186,21 +181,32 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * inlined in the values object and whether the row is
  * expired and deletion process is ongoing.
  *
+ * Bit 0-1 in row_state is the data type of the key.
+ * 0 means a string
+ * 1 means a number
+ * 2 means a binary string
+ *
+ * Bit 2-3 in row_state is the data type of the value.
+ *
  * The key_id is a unique reference of the row that is
  * never reused (it is a 64 bit value and should last
  * for 100's of years). The key_id removes the need to
  * store the full key value in multiple tables.
  *
  * The value extensions are stored in a separate table
- * which have the following format:
- * CREATE TABLE redis_ext_value(
- *   id BIGINT
- *   ordinal UNSIGNED INT,
- *   value VARBINARY(29000),
- *   this_value_len UNSIGNED INT)
- *   PRIMARY KEY (id, ordinal)
- *   PARTITION BY KEY (id)
- * ENGINE NDB COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ * for keys which have the following format:
+ *
+ * CREATE TABLE redis_key_value(
+ *   key_id BIGINT NOT NULL
+ *   ordinal UNSIGNED INT NOT NULL,
+ *   value VARBINARY(29500) NOT NULL,
+ *   PRIMARY KEY (key_id, ordinal),
+ *   FOREIGN KEY (key_id)
+ *    REFERENCES redis_main_key(key_id)
+ *    ON UPDATE RESTRICT ON DELETE CASCADE)
+ *   ENGINE NDB
+ *   PARTITION BY KEY (key_id)
+ *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
  *
  * For the data type Hash we will use another separate
  * table to store the field values. Each field value
@@ -209,17 +215,32 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * table. The field_id is a unique identifier that is
  * referencing the redis_ext_value table.
  *
- * CREATE TABLE redis_hash_fields(
- *   key_id BIGINT,
- *   field_name VARBINARY(3000),
- *   field_id BIGINT,
- *   value VARBINARY(26000),
- *   value_rows UNSIGNED INT,
- *   this_value_len UNSIGNED INT,
- *   tot_value_len UNSIGNED INT,
- *   tot_key_len UNSIGNED INT)
- *   PRIMARY KEY (key_id, field_name)
- * ENGINE NDB COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ * CREATE TABLE redis_main_field(
+ *   key_id BIGINT NOT NULL,
+ *   field_name VARBINARY(3000) NOT NULL,
+ *   field_id BIGINT UNSIGNED,
+ *   value VARBINARY(26500) NOT NULL,
+ *   value_rows UNSIGNED INT NOT NULL,
+ *   tot_value_len UNSIGNED INT NOT NULL,
+ *   tot_key_len UNSIGNED INT NOT NULL,
+ *   PRIMARY KEY (key_id, field_name),
+ *   UNIQUE KEY (field_id))
+ *   ENGINE NDB
+ *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ *
+ * The value extensions are stored in a separate table
+ * for keys which have the following format:
+ * CREATE TABLE redis_field_value(
+ *   field_id BIGINT NOT NULL
+ *   ordinal UNSIGNED INT NOT NULL,
+ *   value VARBINARY(29500) NOT NULL,
+ *   PRIMARY KEY (field_id, ordinal),
+ *   FOREIGN KEY (field_id)
+ *    REFERENCES redis_main_field(field_id)
+ *    ON UPDATE RESTRICT ON DELETE CASCADE)
+ *   ENGINE NDB
+ *   PARTITION BY KEY (field_id)
+ *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
  *
  * For most rows the key will fit in the key field and
  * the value will fit in the value field. In this case
@@ -244,48 +265,119 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * value rows and there are no fields. For hash keys this
  * optimisation isn't used.
  */
+#define INLINE_VALUE_LEN 26500
+#define EXTENSION_VALUE_LEN 29500
+#define MAX_KEY_VALUE_LEN 3000
+
 int
-rondb_get_command(pink::RedisCmdArgsType& argv,
-                  std::string* response,
-                  int fd)
+execute_no_commit(NdbTransaction *trans)
 {
-  if (argv.size() < 2)
+  printf("Execute NoCommit\n");
+  if (trans->execute(NdbTransaction::NoCommit) != 0)
   {
+    printf("Kilroy XXXI, error: %d\n", trans->getNdbError().code);
     return -1;
   }
-  const char *key_str = argv[1].c_str();
-  unsigned int key_len = strlen(key_str);
   return 0;
 }
 
 int
-rondb_set_command(pink::RedisCmdArgsType& argv,
-                  std::string* response,
-                  int fd)
+execute_commit(NdbTransaction *trans)
 {
-  printf("Found a set command with %d arguments\n", argv.size());
-  if (argv.size() < 3)
+  printf("Execute transaction\n");
+  if (trans->execute(NdbTransaction::Commit) != 0)
   {
+    printf("Kilroy I, error: %d\n", trans->getNdbError().code);
     return -1;
   }
-  Ndb *ndb = rondb_ndb[0][0];
-  printf("Kilroy VI\n");
-  const char *key_str = argv[1].c_str();
-  unsigned int key_len = strlen(key_str);
-  printf("Kilroy VII\n");
-  const char *value_str = argv[2].c_str();
-  unsigned int value_len = strlen(value_str);
-  printf("Kilroy VIII\n");
-  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  printf("Kilroy IX\n");
-  const NdbDictionary::Table *tab = dict->getTable("redis_main");
+  ndb->closeTransaction(trans);
+  return 0;
+}
+
+
+int
+create_key_value_row(const NdbDictionary::Dictionary *dict,
+                     NdbTransaction *trans,
+                     const char* start_value_ptr,
+                     Uint64 key_id,
+                     Uint32 this_value_len,
+                     Uint32 ordinal,
+                     char *buf)
+{
+  const NdbDictionary::Table *tab = dict->getTable("redis_key_values");
   if (tab == nullptr)
   {
-    printf("Kilroy V\n");
+    printf("Kilroy XXIV\n");
     return -1;
   }
-  printf("Kilroy X\n");
-  Uint64 key_id;
+  NdbOperation *op = trans->getNdbOperation(tab);
+  if (op == nullptr)
+  {
+    printf("Kilroy XXIII\n");
+    return -1;
+  }
+  op->insertTuple();
+  op->equal("key_id", key_id);
+  op->equal("ordinal", ordinal);
+  memcpy(&buf[2], start_value_ptr, this_value_len);
+  buf[0] = this_value_len & 255;
+  buf[1] = this_value_len >> 8;
+  op->equal("value", buf);
+  return 0;
+}
+
+int
+create_key_row(const NdbDictionary::Table *tab
+               NdbTransaction *trans,
+               const char *key_str,
+               Uint32 key_len,
+               const char *value_str,
+               Uint32 value_len,
+               Uint32 field_rows,
+               Uint32 value_rows,
+               Uint32 row_state,
+               char *buf)
+{
+  NdbOperation *op = trans->getNdbOperation(tab);
+  if (op == nullptr)
+  {
+    printf("Kilroy II\n");
+    return -1;
+  }
+  op->writeTuple();
+
+  memcpy(&buf[2], key_str, key_len);
+  varsize_param[0] = key_len & 255;
+  varsize_param[1] = key_len >> 8;
+  op->equal("redis_key", buf);
+
+  op->setValue("tot_value_len", value_len);
+  op->setValue("value_rows", value_rows);
+  op->setValue("field_rows", field_rows);
+  op->setValue("tot_key_len", key_len);
+  op->setValue("row_state", row_state);
+  op->setValue("expiry_date", 0);
+
+  if (value_len > INLINE_VALUE_LEN)
+  {
+    value_len = INLINE_VALUE_LEN;
+  }
+  memcpy(&buf[2], value_str, value_len);
+  varsize_param[0] = value_len & 255;
+  varsize_param[1] = value_len >> 8;
+  op->setValue("redis_value", buf);
+  if (op->getNdbError().code != 0)
+  {
+    printf("Error: %d\n", trans->getNdbError().code);
+    return -1;
+  }
+  return 0;
+}
+
+int rondb_get_key_id(const NdbDictionary::Table *tab,
+                     Uint64& key_id,
+                     Ndb *ndb)
+{
   if (ndb->getAutoIncrementValue(tab, key_id, unsigned(1024)) != 0)
   {
     if (ndb->getNdbError().code == 626)
@@ -303,89 +395,135 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
       return -1;
     }
   }
-  printf("Kilroy XI\n");
+  return 0;
+}
+
+int
+rondb_get_command(pink::RedisCmdArgsType& argv,
+                  std::string* response,
+                  int fd)
+{
+  if (argv.size() < 2)
+  {
+    return -1;
+  }
+  const char *key_str = argv[1].c_str();
+  Uint32 key_len = strlen(key_str);
+  return 0;
+}
+
+int
+rondb_set_command(pink::RedisCmdArgsType& argv,
+                  std::string* response,
+                  int fd)
+{
+  if (argv.size() < 3)
+  {
+    return -1;
+  }
+  Ndb *ndb = rondb_ndb[0][0];
+  const char *key_str = argv[1].c_str();
+  Uint32 key_len = strlen(key_str);
+  const char *value_str = argv[2].c_str();
+  Uint32 value_len = strlen(value_str);
+  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Table *tab = dict->getTable("redis_main_key");
+  if (tab == nullptr)
+  {
+    printf("Kilroy V\n");
+    return -1;
+  }
+  Uint64 key_id;
+  if (key_len > INLINE_KEY_VALUE_LEN)
+  {
+    int ret_code = rondb_get_key_id(tab, key_id, ndb);
+    if (ret_code == -1)
+    {
+      printf("Kilroy XXV\n");
+      return -1;
+    }
+  }
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
     printf("Kilroy III\n");
     return -1;
   }
-  printf("Kilroy XII\n");
-  NdbOperation *op = trans->getNdbOperation(tab);
-  if (op == nullptr)
+  char varsize_param[EXTENSION_VALUE_LEN + 500];
+  if (key_len > MAX_KEY_VALUE_LEN)
   {
-    printf("Kilroy II\n");
+    printf("Kilroy XX, error: %d\n", op->getNdbError().code);
     return -1;
   }
-  printf("Kilroy XIII, key: %s, key_len: %u\n", key_str, key_len);
-  op->insertTuple();
-  char varsize_param[29000];
-  memcpy(&varsize_param[2], key_str, key_len);
-  varsize_param[0] = key_len & 255;
-  varsize_param[1] = key_len >> 8;
-  if (op->equal("redis_key", &varsize_param[0]) != 0)
+  Uint32 value_rows = 0;
+  if (value_len > INLINE_VALUE_LEN)
   {
-    printf("Kilroy EXV, error: %d\n", op->getNdbError().code);
+    /**
+     * The row doesn't fit in one RonDB row, create more rows
+     * in the redis_key_values table.
+     *
+     * We also use the generated key_id which is the foreign
+     * key column in the redis_main_key table such that
+     * deleting the row in the main table ensures that all
+     * value rows are also deleted.
+     */
+    Uint32 remaining_len = value_len - INLINE_VALUE_LEN;
+    op->setValue("key_id", key_id);
+    char *start_value_ptr = &value_str[INLINE_VALUE_LEN];
+    do
+    {
+      Uint32 this_value_len = remaining_len;
+      if (remaining_len > EXTENSION_VALUE_LEN)
+      {
+        this_value_len = EXTENSION_VALUE_LEN;
+      }
+      int ret_code = create_key_value_row(dict,
+                                          trans,
+                                          start_value_ptr,
+                                          key_id,
+                                          this_value_len,
+                                          value_rows,
+                                          &varsize_param[0]);
+      if (ret_code == -1)
+      {
+        printf("Kilroy XXI\n");
+        return -1;
+      }
+      if ((value_rows & 1) == 1)
+      {
+        if (execute_no_commit(trans) != 0)
+        {
+          printf("Kilroy XXXII\n");
+          return -1;
+        }
+      }
+      remaining_len -= this_value_len;
+      start_value_ptr += this_value_len;
+      value_rows++;
+    } while (remaining_len > 0);
+    value_len = INLINE_VALUE_LEN;
+  }
+  {
+    int ret_code = create_key_row(tab,
+                                  trans,
+                                  key_str,
+                                  key_len,
+                                  value_str,
+                                  value_len,
+                                  Uint32(0),
+                                  value_rows,
+                                  Uint32(0),
+                                  &varsize_param[0]);
+    if (ret_code == -1)
+    {
+      printf("Kilroy XXI\n");
+      return -1;
+    }
+  }
+  if (execute_commit(trans) != 0)
+  {
+    printf("Kilroy XXXIII\n");
     return -1;
   }
-  op->equal("version_id", Uint64(0));
-  op->setValue("key_id", key_id);
-
-  memcpy(&varsize_param[2], value_str, value_len);
-  varsize_param[0] = value_len & 255;
-  varsize_param[1] = value_len >> 8;
-  if (op->setValue("redis_value", &varsize_param[0], value_len) != 0)
-  {
-    printf("Kilroy EXVI, error: %d\n", op->getNdbError().code);
-    return -1;
-  }
-  op->setValue("this_value_len", value_len);
-  printf("Kilroy XIV\n");
-  if (op->setValue("tot_value_len", value_len) != 0)
-  {
-    printf("Kilroy EXIV\n");
-    return -1;
-  }
-  op->setValue("value_rows", 0);
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  op->setValue("field_rows", 0);
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  op->setValue("tot_key_len", value_len);
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  op->setValue("row_state", 0);
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  if (op->setValue("expiry_date", 0) != 0)
-  {
-    printf("Kilroy EXVII, error: %d\n", op->getNdbError().code);
-    return -1;
-  }
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  printf("Execute transaction\n");
-  if (trans->getNdbError().code != 0)
-  {
-    printf("Error: %d\n", trans->getNdbError().code);
-  }
-  if (trans->execute(NdbTransaction::Commit) != 0)
-  {
-    printf("Kilroy I, error: %d\n", trans->getNdbError().code);
-    return -1;
-  }
-  ndb->closeTransaction(trans);
   response->append("+OK\r\n");
-  return 0;
 }
