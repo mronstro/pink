@@ -66,7 +66,7 @@ failed_create_table(std::string *response)
 void
 failed_create_transaction(std::string *response)
 {
-  append_response(reponse,
+  append_response(response,
                   "RonDB Error: Failed to create transaction object",
                   0);
 }
@@ -412,7 +412,7 @@ create_key_value_row(std::string *response,
 int
 create_key_row(std::string *response,
                Ndb *ndb,
-               const NdbDictionary::Table *tab
+               const NdbDictionary::Table *tab,
                NdbTransaction *trans,
                Uint64 key_id,
                const char *key_str,
@@ -429,13 +429,13 @@ create_key_row(std::string *response,
   {
     ndb->closeTransaction(trans);
     failed_get_operation(response);
-    return;
+    return -1;
   }
   write_op->writeTuple();
 
   memcpy(&buf[2], key_str, key_len);
-  varsize_param[0] = key_len & 255;
-  varsize_param[1] = key_len >> 8;
+  buf[0] = key_len & 255;
+  buf[1] = key_len >> 8;
   write_op->equal("redis_key", buf);
 
   if (key_id == 0)
@@ -458,8 +458,8 @@ create_key_row(std::string *response,
     value_len = INLINE_VALUE_LEN;
   }
   memcpy(&buf[2], value_str, value_len);
-  varsize_param[0] = value_len & 255;
-  varsize_param[1] = value_len >> 8;
+  buf[0] = value_len & 255;
+  buf[1] = value_len >> 8;
   write_op->setValue("redis_value", buf);
   {
     int ret_code = write_op->getNdbError().code;
@@ -517,7 +517,7 @@ create_key_row(std::string *response,
     del_op->deleteTuple();
     del_op->equal("redis_key", buf);
     {
-      int ret_code = delete_op->getNdbError().code;
+      int ret_code = del_op->getNdbError().code;
       if (ret_code != 0)
       {
         ndb->closeTransaction(trans);
@@ -525,7 +525,6 @@ create_key_row(std::string *response,
         return -1;
       }
     }
-  }
   }
   {
     int ret_code = 0;
