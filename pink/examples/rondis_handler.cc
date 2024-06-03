@@ -623,7 +623,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
 {
   if (argv.size() < 3)
   {
-    append_response("ERR Too few arguments in SET command", 0);
+    append_response(response, "ERR Too few arguments in SET command", 0);
     return;
   }
   Ndb *ndb = rondb_ndb[0][0];
