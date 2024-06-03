@@ -470,13 +470,14 @@ create_key_row(std::string *response,
       return -1;
     }
   }
-  if (((value_rows == 0) &&
-       (execute_commit(ndb, trans, ret_code) == 0)) ||
-       (execute_no_commit(trans, ret_code, true) == 0))
   {
-    return 0;
-  }
-  {
+    int ret_code = 0;
+    if (((value_rows == 0) &&
+         (execute_commit(ndb, trans, ret_code) == 0)) ||
+         (execute_no_commit(trans, ret_code, true) == 0))
+    {
+      return 0;
+    }
     int write_op_error = write_op->getNdbError().code;
     if (write_op_error != FOREIGN_KEY_RESTRICT_ERROR)
     {
@@ -499,7 +500,7 @@ create_key_row(std::string *response,
   if (value_rows == 0)
   {
     ndb->closeTransaction(trans);
-    trans->startTransaction(tab, key_str, key_len);
+    ndb->startTransaction(tab, key_str, key_len);
     if (trans == nullptr)
     {
       failed_create_transaction(response);
@@ -608,11 +609,11 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
 {
   if (argv.size() < 2)
   {
-    return -1;
+    return;
   }
   const char *key_str = argv[1].c_str();
   Uint32 key_len = strlen(key_str);
-  return 0;
+  return;
 }
 
 void
@@ -670,7 +671,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
       return;
     }
     Uint32 remaining_len = value_len - INLINE_VALUE_LEN;
-    char *start_value_ptr = &value_str[INLINE_VALUE_LEN];
+    const char *start_value_ptr = &value_str[INLINE_VALUE_LEN];
     do
     {
       Uint32 this_value_len = remaining_len;
