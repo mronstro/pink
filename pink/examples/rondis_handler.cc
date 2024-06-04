@@ -1299,6 +1299,7 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
     {
       /* Row uses value rows, so more complex read is required */
       ret_code = get_complex_key_row(response,
+                                     dict,
                                      tab,
                                      ndb,
                                      &row_object,
