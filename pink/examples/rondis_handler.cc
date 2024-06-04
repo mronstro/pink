@@ -86,14 +86,14 @@ NdbDictionary::RecordSpecification all_redis_key_value_spec[3];
 NdbDictionary::RecordSpecification primary_redis_main_field_spec[2];
 NdbDictionary::RecordSpecification all_redis_main_field_spec[7];
 
-NdbRecord *primary_redis_main_key = nullptr;
-NdbRecord *all_redis_main_key = nullptr;
-NdbRecord *primary_redis_key_value = nullptr;
-NdbRecord *all_redis_key_value = nullptr;
-NdbRecord *primary_redis_main_field = nullptr;
-NdbRecord *all_redis_main_field = nullptr;
-NdbRecord *primary_redis_field_value = nullptr;
-NdbRecord *all_redis_field_value = nullptr;
+NdbRecord *primary_redis_main_key_record = nullptr;
+NdbRecord *all_redis_main_key_record = nullptr;
+NdbRecord *primary_redis_key_value_record = nullptr;
+NdbRecord *all_redis_key_value_record = nullptr;
+NdbRecord *primary_redis_main_field_record = nullptr;
+NdbRecord *all_redis_main_field_record = nullptr;
+NdbRecord *primary_redis_field_value_record = nullptr;
+NdbRecord *all_redis_field_value_record = nullptr;
 
 void
 append_response(std::string *response, const char *app_str, Uint32 error_code)
