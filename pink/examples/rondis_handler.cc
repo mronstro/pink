@@ -1088,8 +1088,11 @@ get_simple_key_row(std::string *response,
       return READ_VALUE_ROWS;
     }
     char buf[20];
-    write_formatted(buf, sizeof(buf), "$%u\r\n", row->tot_value_len);
-    response->reserve(row->tot_value_len + 16);
+    int len = write_formatted(buf,
+                              sizeof(buf),
+                              "$%u\r\n",
+                              row->tot_value_len);
+    response->reserve(row->tot_value_len + len + 3);
     response->append(buf);
     response->append((const char*)&row->value, row->tot_value_len);
     response->append("\r\n");
