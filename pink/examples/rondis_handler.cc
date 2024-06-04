@@ -142,7 +142,7 @@ failed_read_error(std::string *response, Uint32 error_code)
 void
 failed_create_table(std::string *response)
 {
-  append_response(response, "RonDB Error: Failed to create table object", 0);
+  response->append(response, "RonDB Error: Failed to create table object");
 }
 
 void
@@ -580,6 +580,7 @@ rondb_connect(const char *connect_string,
       return -1;
     }
   }
+  printf("Kilroy came here I\n");
   return 0;
 }
 
@@ -647,7 +648,7 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
    value_rows INT UNSIGNED NOT NULL,
    row_state INT UNSIGNED NOT NULL,
    tot_key_len INT UNSIGNED NOT NULL,
-   PRIMARY KEY (redis_key) USING HASH,
+   PRIMARY KEY (key_val) USING HASH,
    UNIQUE KEY (key_id),
    KEY expiry_index(expiry_date))
    ENGINE NDB
@@ -699,17 +700,17 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * The value extensions are stored in a separate table
  * for keys which have the following format:
  *
- * CREATE TABLE redis_key_value(
- *   key_id BIGINT NOT NULL
- *   ordinal UNSIGNED INT NOT NULL,
- *   value VARBINARY(29500) NOT NULL,
- *   PRIMARY KEY (key_id, ordinal),
- *   FOREIGN KEY (key_id)
- *    REFERENCES redis_main_key(key_id)
- *    ON UPDATE RESTRICT ON DELETE CASCADE)
- *   ENGINE NDB
- *   PARTITION BY KEY (key_id)
- *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+  CREATE TABLE redis_key_value(
+    key_id BIGINT UNSIGNED NOT NULL,
+    ordinal INT UNSIGNED NOT NULL,
+    value VARBINARY(29500) NOT NULL,
+    PRIMARY KEY (key_id, ordinal),
+    FOREIGN KEY (key_id)
+     REFERENCES redis_main_key(key_id)
+     ON UPDATE RESTRICT ON DELETE CASCADE)
+    ENGINE NDB,
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
+    PARTITION BY KEY (key_id)
  *
  * For the data type Hash we will use another separate
  * table to store the field values. Each field value
@@ -729,7 +730,7 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  *   PRIMARY KEY (key_id, field_name),
  *   UNIQUE KEY (field_id))
  *   ENGINE NDB
- *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ *   COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
  *
  * The value extensions are stored in a separate table
  * for keys which have the following format:
@@ -741,9 +742,9 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  *   FOREIGN KEY (field_id)
  *    REFERENCES redis_main_field(field_id)
  *    ON UPDATE RESTRICT ON DELETE CASCADE)
- *   ENGINE NDB
  *   PARTITION BY KEY (field_id)
- *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
+ *   ENGINE NDB
+ *   COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
  *
  * For most rows the key will fit in the key field and
  * the value will fit in the value field. In this case
@@ -1325,6 +1326,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
                   std::string* response,
                   int fd)
 {
+  printf("Kilroy came here II\n");
   if (argv.size() < 3)
   {
     append_response(response, "ERR Too few arguments in SET command", 0);
@@ -1347,6 +1349,7 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
     failed_create_table(response);
     return;
   }
+  printf("Kilroy came here III\n");
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
