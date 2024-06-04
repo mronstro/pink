@@ -1059,7 +1059,7 @@ get_simple_key_row(std::string *response,
     primary_redis_main_key_record,
     (const char *)row,
     all_redis_main_key_record,
-    (const char *)row,
+    (char *)row,
     NdbOperation::LM_CommittedRead,
     mask);
   if (read_op == nullptr)
