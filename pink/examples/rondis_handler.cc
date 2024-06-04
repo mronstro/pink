@@ -1109,12 +1109,30 @@ get_simple_key_row(std::string *response,
 }
 
 int
+get_value_rows(std::string *response,
+               NdbDictionary::Dictionary *dict,
+               NdbTransaction *trans,
+               Uint32 num_rows,
+               Uint64 key_id,
+               Uint32 this_value_len,
+               Uint32 tot_value_len)
+{
+  return 0;
+}
+
+int
 get_complex_key_row(std::string *response,
+                    const NdbDictionary::Dictionary *dict;
                     const NdbDictionary::Table *tab,
                     Ndb *ndb,
                     struct redis_main_key *row,
                     Uint32 key_len)
 {
+  /**
+   * Since a simple read using CommittedRead we will go back to
+   * the safe method where we first read with lock the key row
+   * followed by reading the value rows.
+   */
   NdbTransaction *trans = ndb->startTransaction(tab,
                                                 &row->key_val[0],
                                                 key_len + 2);
@@ -1123,14 +1141,56 @@ get_complex_key_row(std::string *response,
     failed_create_transaction(response);
     return RONDB_INTERNAL_ERROR;
   }
-  NdbOperation *read_op = trans->getNdbOperation(tab);
+  /**
+   * Mask and options means simply reading all columns
+   * except primary key column.
+   */
+
+  const Uint32 mask = 0xFE;
+  const unsigned char *mask_ptr = (const unsigned char*)&mask;
+  const NdbOperation *read_op = trans->readTuple(
+    primary_redis_main_key_record,
+    (const char *)row,
+    all_redis_main_key_record,
+    (char *)row,
+    NdbOperation::LM_Read,
+    mask_ptr);
   if (read_op == nullptr)
   {
     ndb->closeTransaction(trans);
     failed_get_operation(response);
     return RONDB_INTERNAL_ERROR;
   }
-  return 0;
+  if (trans->execute(NdbTransaction::NoCommit,
+                     NdbOperation::AbortOnError) != -1)
+  {
+    char buf[20];
+    int len = write_formatted(buf,
+                              sizeof(buf),
+                              "$%u\r\n",
+                              row->tot_value_len);
+
+    response->reserve(row->tot_value_len + len + 3);
+    response->append(buf);
+    Uint32 this_value_len = row->value[0] + (row->value[1] << 8);
+    response->append((const char*)row->value[2], this_value_len);
+    int ret_code = get_value_rows(response,
+                                  dict,
+                                  trans,
+                                  row->num_rows,
+                                  row->key_id,
+                                  this_value_len,
+                                  row->tot_value_len);
+    if (ret_code == 0)
+    {
+      response->append("\r\n");
+      return 0;
+    }
+    return RONDB_INTERNAL_ERROR;
+  }
+  failed_read_error(response_error,
+                    trans->getNdbError().code);
+  return RONDB_INTERNAL_ERROR;
 }
 
 void
