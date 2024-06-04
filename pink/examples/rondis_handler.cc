@@ -152,13 +152,13 @@ failed_read_error(std::string *response, Uint32 error_code)
 void
 failed_create_table(std::string *response)
 {
-  response->append("-RonDB Error: Failed to create table object");
+  response->append("-RonDB Error: Failed to create table object\r\n");
 }
 
 void
 failed_create_transaction(std::string *response)
 {
-  response->append("-RonDB Error: Failed to create transaction object");
+  response->append("-RonDB Error: Failed to create transaction object\r\n");
 }
 
 void
@@ -172,7 +172,7 @@ failed_execute(std::string *response, Uint32 error_code)
 void
 failed_get_operation(std::string *response)
 {
-  response->append("-RonDB Error: Failed to get NdbOperation object");
+  response->append("-RonDB Error: Failed to get NdbOperation object\r\n");
 }
 
 void
@@ -186,7 +186,7 @@ failed_define(std::string *response, Uint32 error_code)
 void
 failed_large_key(std::string *response)
 {
-  response->append("-RonDB Error: Support up to 3000 bytes long keys");
+  response->append("-RonDB Error: Support up to 3000 bytes long keys\r\n");
 }
 
 int
