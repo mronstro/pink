@@ -150,15 +150,19 @@ failed_read_error(std::string *response, Uint32 error_code)
 }
 
 void
-failed_create_table(std::string *response)
+failed_create_table(std::string *response, Uint32 error_code)
 {
-  response->append("-RonDB Error: Failed to create table object\r\n");
+  append_response(response,
+                  "RonDB Error: Failed to create table object",
+                  error_code);
 }
 
 void
-failed_create_transaction(std::string *response)
+failed_create_transaction(std::string *response,
+                          Uint32 error_code)
 {
-  response->append("-RonDB Error: Failed to create transaction object\r\n");
+  append_response("RonDB Error: Failed to create transaction object",
+                  error_code);
 }
 
 void
@@ -818,8 +822,8 @@ create_key_value_row(std::string *response,
   const NdbDictionary::Table *tab = dict->getTable("redis_key_values");
   if (tab == nullptr)
   {
+    failed_create_table(response, ndb->getNdbError().code);
     ndb->closeTransaction(trans);
-    failed_create_table(response);
     return -1;
   }
   NdbOperation *op = trans->getNdbOperation(tab);
@@ -1056,7 +1060,7 @@ get_simple_key_row(std::string *response,
                                                 key_len + 2);
   if (trans == nullptr)
   {
-    failed_create_transaction(response);
+    failed_create_transaction(response, ndb->getNdbError().code);
     return RONDB_INTERNAL_ERROR;
   }
   /**
@@ -1097,6 +1101,7 @@ get_simple_key_row(std::string *response,
     response->append((const char*)&row->value[2], row->tot_value_len);
     response->append("\r\n");
     printf("Respond with len: %u, %u tot_value_len, string: %s, string_len: %u\n", len, row->tot_value_len, response->c_str(), response->length());
+    ndb->closeTransaction();
     return 0;
   }
   int ret_code = read_op->getNdbError().code;
@@ -1122,9 +1127,9 @@ get_value_rows(std::string *response,
   const NdbDictionary::Table *tab = dict->getTable("redis_key_values");
   if (tab == nullptr)
   {
+    failed_create_table(response, ndb->getNdbError().code);
     ndb->closeTransaction(trans);
     response->clear();
-    failed_create_table(response);
     return -1;
   }
   struct redis_key_value row[2];
@@ -1195,7 +1200,7 @@ get_complex_key_row(std::string *response,
                                                 key_len + 2);
   if (trans == nullptr)
   {
-    failed_create_transaction(response);
+    failed_create_transaction(response, ndb->getNdbError().code);
     return RONDB_INTERNAL_ERROR;
   }
   /**
@@ -1272,7 +1277,7 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
   const NdbDictionary::Table *tab = dict->getTable("redis_main_key");
   if (tab == nullptr)
   {
-    failed_create_table(response);
+    failed_create_table(response, dict->getNdbError().code);
     return;
   }
   struct redis_main_key row_object;
@@ -1346,14 +1351,14 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   const NdbDictionary::Table *tab = dict->getTable("redis_main_key");
   if (tab == nullptr)
   {
-    failed_create_table(response);
+    failed_create_table(response, dict->getNdbError().code);
     return;
   }
   printf("Kilroy came here III\n");
   NdbTransaction *trans = ndb->startTransaction(tab, key_str, key_len);
   if (trans == nullptr)
   {
-    failed_create_transaction(response);
+    failed_create_transaction(response, ndb->getNdbError().code);
     return;
   }
   char varsize_param[EXTENSION_VALUE_LEN + 500];
