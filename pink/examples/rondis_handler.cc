@@ -1093,7 +1093,7 @@ get_simple_key_row(std::string *response,
                               row->tot_value_len);
     response->reserve(row->tot_value_len + len + 3);
     response->append(buf);
-    response->append((const char*)&row->value, row->tot_value_len);
+    response->append((const char*)&row->value[2], row->tot_value_len);
     response->append("\r\n");
     printf("Respond with len: %u, %u tot_value_len, string: %s, string_len: %u\n", len, row->tot_value_len, response->c_str(), response->length());
     return 0;
