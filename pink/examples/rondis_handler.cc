@@ -1110,12 +1110,13 @@ get_simple_key_row(std::string *response,
 
 int
 get_value_rows(std::string *response,
-               NdbDictionary::Dictionary *dict,
-               NdbTransaction *trans,
-               Uint32 num_rows,
-               Uint64 key_id,
-               Uint32 this_value_len,
-               Uint32 tot_value_len)
+               const Ndb *ndb,
+               const NdbDictionary::Dictionary *dict,
+               const NdbTransaction *trans,
+               const Uint32 num_rows,
+               const Uint64 key_id,
+               const Uint32 this_value_len,
+               const Uint32 tot_value_len)
 {
   const NdbDictionary::Table *tab = dict->getTable("redis_key_values");
   if (tab == nullptr)
@@ -1230,6 +1231,7 @@ get_complex_key_row(std::string *response,
     Uint32 this_value_len = row->value[0] + (row->value[1] << 8);
     response->append((const char*)row->value[2], this_value_len);
     int ret_code = get_value_rows(response,
+                                  ndb,
                                   dict,
                                   trans,
                                   row->num_rows,
