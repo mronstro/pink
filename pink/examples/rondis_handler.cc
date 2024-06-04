@@ -1229,7 +1229,7 @@ get_complex_key_row(std::string *response,
     response->reserve(row->tot_value_len + len + 3);
     response->append(buf);
     Uint32 this_value_len = row->value[0] + (row->value[1] << 8);
-    response->append((const char*)row->value[2], this_value_len);
+    response->append((const char*)&row->value[2], this_value_len);
     int ret_code = get_value_rows(response,
                                   ndb,
                                   dict,
