@@ -1102,7 +1102,7 @@ get_simple_key_row(std::string *response,
     response->append((const char*)&row->value[2], row->tot_value_len);
     response->append("\r\n");
     printf("Respond with len: %u, %u tot_value_len, string: %s, string_len: %u\n", len, row->tot_value_len, response->c_str(), response->length());
-    ndb->closeTransaction();
+    ndb->closeTransaction(trans);
     return 0;
   }
   int ret_code = read_op->getNdbError().code;
