@@ -38,14 +38,15 @@
 
 struct redis_main_key
 {
+  Uint32 null_bits;
   char key_val[MAX_KEY_VALUE_LEN + 2];
   Uint64 key_id;
   Uint32 expiry_date;
-  char value[INLINE_VALUE_LEN + 2];
   Uint32 tot_value_len;
   Uint32 num_rows;
   Uint32 row_state;
   Uint32 tot_key_len;
+  char value[INLINE_VALUE_LEN + 2];
 };
 
 struct redis_key_value
@@ -57,13 +58,14 @@ struct redis_key_value
 
 struct redis_main_field
 {
-  Uint64 key_id;
+  Uint32 null_bits;
   char field_name[MAX_KEY_VALUE_LEN + 2];
+  Uint64 key_id;
   Uint64 field_id;
-  char value[INLINE_VALUE_LEN + 2];
   Uint32 num_value_rows;
   Uint32 tot_value_len;
   Uint32 tot_key_len;
+  char value[INLINE_VALUE_LEN + 2];
 };
 
 struct redis_field_value
@@ -120,6 +122,20 @@ append_response(std::string *response, const char *app_str, Uint32 error_code)
     sscanf(buf, "%s %u\r\n", app_str, error_code);
     response->append(app_str);
   }
+}
+
+void
+failed_no_such_row(std::string *response)
+{
+  response->append("$-1\r\n");
+}
+
+void
+failed_read_error(std::string *response, Uint32 error_code)
+{
+  append_response(response,
+                  "RonDB Error: Failed to read key, code:",
+                  error_code);
 }
 
 void
@@ -1022,7 +1038,7 @@ int
 get_simple_key_row(std::string *response,
                    const NdbDictionary::Table *tab,
                    Ndb *ndb,
-                   const char *key_buf,
+                   struct redis_main_key *row,
                    Uint32 key_len)
 {
   NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
@@ -1031,21 +1047,54 @@ get_simple_key_row(std::string *response,
     failed_create_transaction(response);
     return RONDB_INTERNAL_ERROR;
   }
-  NdbOperation *read_op = trans->getNdbOperation(tab);
+  /**
+   * Mask and options means simply reading all columns
+   * except primary key column.
+   */
+
+  Uint32 mask = 0xFE;
+  const NdbOperation *read_op = trans->read_tuple(
+    primary_redis_main_key_record,
+    (const char *)row,
+    all_redis_main_key_record,
+    (const char *)row,
+    NdbOperation::LM_ReadCommitted,
+    mask);
   if (read_op == nullptr)
   {
     ndb->closeTransaction(trans);
     failed_get_operation(response);
     return RONDB_INTERNAL_ERROR;
   }
-  return 0;
+  if (trans->execute(NdbTransaction::Commit,
+                     NdbOperation::AbortOnError) != -1)
+  {
+    if (row->value_rows > 0)
+    {
+      return READ_VALUE_ROWS;
+    }
+    char buf[20];
+    vsnprintf(buf, sizeof(buf), "$%u\r\n", row->tot_value_len);
+    response->append(buf);
+    response->append((const char*)&row->value, row->tot_value_len);
+    response->append("\r\n");
+    return 0;
+  }
+  int ret_code = trans->getNdbError().code;
+  if (ret_code == READ_ERROR)
+  {
+    failed_no_such_row_error(response);
+    return READ_ERROR;
+  }
+  failed_read_error(response, ret_code);
+  return RONDB_INTERNAL_ERROR;
 }
 
 int
 get_complex_key_row(std::string *response,
                     const NdbDictionary::Table *tab,
                     Ndb *ndb,
-                    const char *key_buf,
+                    struct redis_main_key *row,
                     Uint32 key_len)
 {
   NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
@@ -1088,15 +1137,16 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
     failed_create_table(response);
     return;
   }
+  struct redis_main_key row_object;
   char key_buf[MAX_KEY_VALUE_LEN + 2];
-  memcpy(&key_buf[2], key_str, key_len);
-  key_buf[0] = key_len & 255;
-  key_buf[1] = key_len >> 8;
+  memcpy(&row_object.key_val[2], key_str, key_len);
+  row_object.key_val[0] = key_len & 255;
+  row_object.key_val[1] = key_len >> 8;
   {
     int ret_code = get_simple_key_row(response,
                                       tab,
                                       ndb,
-                                      key_buf,
+                                      &row_object,
                                       key_len);
     if (ret_code == 0)
     {
