@@ -108,6 +108,16 @@ NdbRecord *all_redis_main_field_record = nullptr;
 NdbRecord *primary_redis_field_value_record = nullptr;
 NdbRecord *all_redis_field_value_record = nullptr;
 
+int write_formatted(char* buffer, int bufferSize, const char *format, ...)
+{
+  int len = 0;
+  va_list arguments;
+  va_start(arguments, format);
+  len = vsnprintf(buffer, bufferSize, format, arguments);
+  va_end(arguments);
+  return len;
+}
+
 void
 append_response(std::string *response, const char *app_str, Uint32 error_code)
 {
@@ -115,7 +125,7 @@ append_response(std::string *response, const char *app_str, Uint32 error_code)
   printf("Add %s to response, error: %u\n", app_str, error_code);
   if (error_code == 0)
   {
-    sscanf(buf, "%s\r\n", app_str);
+    write_formatted(buf, sizeof(buf), "%s\r\n", app_str);
     response->append(app_str);
   }
   else
@@ -142,15 +152,13 @@ failed_read_error(std::string *response, Uint32 error_code)
 void
 failed_create_table(std::string *response)
 {
-  response->append(response, "RonDB Error: Failed to create table object");
+  response->append("RonDB Error: Failed to create table object");
 }
 
 void
 failed_create_transaction(std::string *response)
 {
-  append_response(response,
-                  "RonDB Error: Failed to create transaction object",
-                  0);
+  response->append("RonDB Error: Failed to create transaction object");
 }
 
 void
@@ -164,9 +172,7 @@ failed_execute(std::string *response, Uint32 error_code)
 void
 failed_get_operation(std::string *response)
 {
-  append_response(response,
-                  "RonDB Error: Failed to get NdbOperation object",
-                  0);
+  response->append("RonDB Error: Failed to get NdbOperation object");
 }
 
 void
@@ -180,9 +186,7 @@ failed_define(std::string *response, Uint32 error_code)
 void
 failed_large_key(std::string *response)
 {
-  append_response(response,
-                  "RonDB Error: Support up to 3000 bytes long keys",
-                  0);
+  response->append("RonDB Error: Support up to 3000 bytes long keys");
 }
 
 int
@@ -1035,16 +1039,6 @@ int rondb_get_key_id(const NdbDictionary::Table *tab,
 #define READ_VALUE_ROWS 1
 #define RONDB_INTERNAL_ERROR 2
 #define READ_ERROR 626
-
-int write_formatted(char* buffer, int bufferSize, const char *format, ...)
-{
-  int len = 0;
-  va_list arguments;
-  va_start(arguments, format);
-  len = vsnprintf(buffer, bufferSize, format, arguments);
-  va_end(arguments);
-  return len;
-}
 
 int
 get_simple_key_row(std::string *response,
