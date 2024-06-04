@@ -1055,13 +1055,14 @@ get_simple_key_row(std::string *response,
    */
 
   Uint32 mask = 0xFE;
+  const char *mask_ptr = &mask;
   const NdbOperation *read_op = trans->readTuple(
     primary_redis_main_key_record,
     (const char *)row,
     all_redis_main_key_record,
     (char *)row,
     NdbOperation::LM_CommittedRead,
-    mask);
+    mask_ptr);
   if (read_op == nullptr)
   {
     ndb->closeTransaction(trans);
