@@ -416,7 +416,7 @@ rondb_connect(const char *connect_string,
     const NdbDictionary::Table *tab= dict->getTable("redis_main_field");
     if (tab == nullptr)
     {
-      printf("Kilroy XXVIII\n");
+      printf("Kilroy eXVIII\n");
       return -1;
     }
     const NdbDictionary::Column *key_id_col = tab->getColumn("key_id");
@@ -443,6 +443,7 @@ rondb_connect(const char *connect_string,
       printf("Kilroy XXIX\n");
       return -1;
     }
+    printf("Kilroy IV Was here\n");
 
     primary_redis_main_field_spec[0].column = key_id_col;
     primary_redis_main_field_spec[0].offset =
@@ -466,6 +467,7 @@ rondb_connect(const char *connect_string,
       printf("Kilroy XXX\n");
       return -1;
     }
+    printf("Kilroy V Was here\n");
 
     all_redis_main_field_spec[0].column = key_id_col;
     all_redis_main_field_spec[0].offset =
@@ -519,6 +521,7 @@ rondb_connect(const char *connect_string,
       printf("Kilroy XXXI\n");
       return -1;
     }
+    printf("Kilroy VI Was here\n");
   }
   {
     const NdbDictionary::Table *tab= dict->getTable("redis_field_value");
@@ -528,6 +531,7 @@ rondb_connect(const char *connect_string,
       return -1;
     }
 
+    printf("Kilroy VIII Was here\n");
     const NdbDictionary::Column *field_id_col = tab->getColumn("field_id");
     const NdbDictionary::Column *ordinal_col = tab->getColumn("ordinal");
     const NdbDictionary::Column *value_col = tab->getColumn("value");
@@ -554,6 +558,7 @@ rondb_connect(const char *connect_string,
       printf("Kilroy XXXIV\n");
       return -1;
     }
+    printf("Kilroy VII Was here\n");
 
     all_redis_field_value_spec[0].column = field_id_col;
     all_redis_field_value_spec[0].offset =
@@ -649,7 +654,7 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
    expiry_date INT UNSIGNED,
    value VARBINARY(26500) NOT NULL,
    tot_value_len INT UNSIGNED NOT NULL,
-   value_rows INT UNSIGNED NOT NULL,
+   num_rows INT UNSIGNED NOT NULL,
    row_state INT UNSIGNED NOT NULL,
    tot_key_len INT UNSIGNED NOT NULL,
    PRIMARY KEY (key_val) USING HASH,
@@ -723,32 +728,32 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * table. The field_id is a unique identifier that is
  * referencing the redis_ext_value table.
  *
- * CREATE TABLE redis_main_field(
- *   key_id BIGINT NOT NULL,
- *   field_name VARBINARY(3000) NOT NULL,
- *   field_id BIGINT UNSIGNED,
- *   value VARBINARY(26500) NOT NULL,
- *   value_rows UNSIGNED INT NOT NULL,
- *   tot_value_len UNSIGNED INT NOT NULL,
- *   tot_key_len UNSIGNED INT NOT NULL,
- *   PRIMARY KEY (key_id, field_name),
- *   UNIQUE KEY (field_id))
- *   ENGINE NDB
- *   COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
+  CREATE TABLE redis_main_field(
+    key_id BIGINT UNSIGNED NOT NULL,
+    field_name VARBINARY(3000) NOT NULL,
+    field_id BIGINT UNSIGNED,
+    value VARBINARY(26500) NOT NULL,
+    num_value_rows INT UNSIGNED NOT NULL,
+    tot_value_len INT UNSIGNED NOT NULL,
+    tot_key_len INT UNSIGNED NOT NULL,
+    PRIMARY KEY (key_id, field_name),
+    UNIQUE KEY (field_id))
+    ENGINE NDB
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
  *
  * The value extensions are stored in a separate table
  * for keys which have the following format:
- * CREATE TABLE redis_field_value(
- *   field_id BIGINT NOT NULL
- *   ordinal UNSIGNED INT NOT NULL,
- *   value VARBINARY(29500) NOT NULL,
- *   PRIMARY KEY (field_id, ordinal),
- *   FOREIGN KEY (field_id)
- *    REFERENCES redis_main_field(field_id)
- *    ON UPDATE RESTRICT ON DELETE CASCADE)
- *   PARTITION BY KEY (field_id)
- *   ENGINE NDB
- *   COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
+  CREATE TABLE redis_field_value(
+    field_id BIGINT UNSIGNED NOT NULL,
+    ordinal INT UNSIGNED NOT NULL,
+    value VARBINARY(29500) NOT NULL,
+    PRIMARY KEY (field_id, ordinal),
+    FOREIGN KEY (field_id)
+     REFERENCES redis_main_field(field_id)
+     ON UPDATE RESTRICT ON DELETE CASCADE)
+    ENGINE NDB,
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8"
+    PARTITION BY KEY (field_id)
  *
  * For most rows the key will fit in the key field and
  * the value will fit in the value field. In this case
