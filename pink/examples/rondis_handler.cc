@@ -1111,7 +1111,7 @@ get_simple_key_row(std::string *response,
 int
 get_value_rows(std::string *response,
                Ndb *ndb,
-               NdbDictionary::Dictionary *dict,
+               const NdbDictionary::Dictionary *dict,
                NdbTransaction *trans,
                const Uint32 num_rows,
                const Uint64 key_id,
@@ -1245,7 +1245,7 @@ get_complex_key_row(std::string *response,
     }
     return RONDB_INTERNAL_ERROR;
   }
-  failed_read_error(response_error,
+  failed_read_error(response,
                     trans->getNdbError().code);
   return RONDB_INTERNAL_ERROR;
 }
