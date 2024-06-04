@@ -161,7 +161,8 @@ void
 failed_create_transaction(std::string *response,
                           Uint32 error_code)
 {
-  append_response("RonDB Error: Failed to create transaction object",
+  append_response(response,
+                  "RonDB Error: Failed to create transaction object",
                   error_code);
 }
 
