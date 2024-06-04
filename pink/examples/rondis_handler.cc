@@ -1150,7 +1150,7 @@ get_value_rows(std::string *response,
     if (row_index == 2 || index == (num_rows - 1))
     {
       row_index = 0;
-      ExecType commit_type = NdbTransaction::NoCommit;
+      NdbTransaction::ExecType commit_type = NdbTransaction::NoCommit;
       if (index == (num_rows - 1))
       {
         commit_type = NdbTransaction::Commit;
