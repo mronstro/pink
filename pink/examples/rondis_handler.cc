@@ -1034,6 +1034,16 @@ int rondb_get_key_id(const NdbDictionary::Table *tab,
 #define RONDB_INTERNAL_ERROR 2
 #define READ_ERROR 626
 
+int write_formatted(char* buffer, int bufferSize, const char *format, ...)
+{
+  int len = 0;
+  va_list arguments;
+  va_start(arguments, format);
+  len = vsnprintf(buffer, bufferSize, format, arguments);
+  va_end(arguments);
+  return len;
+}
+
 int
 get_simple_key_row(std::string *response,
                    const NdbDictionary::Table *tab,
@@ -1077,7 +1087,7 @@ get_simple_key_row(std::string *response,
       return READ_VALUE_ROWS;
     }
     char buf[20];
-    vsnprintf(buf, sizeof(buf), "$%u\r\n", row->tot_value_len);
+    write_formatted(buf, sizeof(buf), "$%u\r\n", row->tot_value_len);
     response->append(buf);
     response->append((const char*)&row->value, row->tot_value_len);
     response->append("\r\n");
