@@ -125,12 +125,12 @@ append_response(std::string *response, const char *app_str, Uint32 error_code)
   printf("Add %s to response, error: %u\n", app_str, error_code);
   if (error_code == 0)
   {
-    write_formatted(buf, sizeof(buf), "%s\r\n", app_str);
+    write_formatted(buf, sizeof(buf), "-%s\r\n", app_str);
     response->append(app_str);
   }
   else
   {
-    sscanf(buf, "%s %u\r\n", app_str, error_code);
+    write_formatted(buf, sizeof(buf), "-%s: %u\r\n", app_str, error_code);
     response->append(app_str);
   }
 }
@@ -152,13 +152,13 @@ failed_read_error(std::string *response, Uint32 error_code)
 void
 failed_create_table(std::string *response)
 {
-  response->append("RonDB Error: Failed to create table object");
+  response->append("-RonDB Error: Failed to create table object");
 }
 
 void
 failed_create_transaction(std::string *response)
 {
-  response->append("RonDB Error: Failed to create transaction object");
+  response->append("-RonDB Error: Failed to create transaction object");
 }
 
 void
@@ -172,7 +172,7 @@ failed_execute(std::string *response, Uint32 error_code)
 void
 failed_get_operation(std::string *response)
 {
-  response->append("RonDB Error: Failed to get NdbOperation object");
+  response->append("-RonDB Error: Failed to get NdbOperation object");
 }
 
 void
@@ -186,7 +186,7 @@ failed_define(std::string *response, Uint32 error_code)
 void
 failed_large_key(std::string *response)
 {
-  response->append("RonDB Error: Support up to 3000 bytes long keys");
+  response->append("-RonDB Error: Support up to 3000 bytes long keys");
 }
 
 int
