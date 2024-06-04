@@ -27,6 +27,15 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/Ndb.hpp>
 
+#define MAX_CONNECTIONS 1
+#define MAX_NDB_PER_CONNECTION 1
+
+#define INLINE_VALUE_LEN 26500
+#define EXTENSION_VALUE_LEN 29500
+#define MAX_KEY_VALUE_LEN 3000
+
+#define FOREIGN_KEY_RESTRICT_ERROR 256
+
 struct redis_main_key
 {
   char key_val[MAX_KEY_VALUE_LEN + 2];
@@ -72,8 +81,6 @@ void
 rondb_set_command(pink::RedisCmdArgsType&,
                   std::string* response,
                   int fd);
-#define MAX_CONNECTIONS 1
-#define MAX_NDB_PER_CONNECTION 1
 Ndb_cluster_connection *rondb_conn[MAX_CONNECTIONS];
 Ndb *rondb_ndb[MAX_CONNECTIONS][MAX_NDB_PER_CONNECTION];
 
@@ -744,12 +751,6 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * value rows and there are no fields. For hash keys this
  * optimisation isn't used.
  */
-#define INLINE_VALUE_LEN 26500
-#define EXTENSION_VALUE_LEN 29500
-#define MAX_KEY_VALUE_LEN 3000
-
-#define FOREIGN_KEY_RESTRICT_ERROR 256
-
 int
 execute_no_commit(NdbTransaction *trans, int &ret_code, bool allow_fail)
 {
