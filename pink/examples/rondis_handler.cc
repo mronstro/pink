@@ -1110,9 +1110,9 @@ get_simple_key_row(std::string *response,
 
 int
 get_value_rows(std::string *response,
-               const Ndb *ndb,
-               const NdbDictionary::Dictionary *dict,
-               const NdbTransaction *trans,
+               Ndb *ndb,
+               NdbDictionary::Dictionary *dict,
+               NdbTransaction *trans,
                const Uint32 num_rows,
                const Uint64 key_id,
                const Uint32 this_value_len,
