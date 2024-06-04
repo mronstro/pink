@@ -86,6 +86,9 @@ NdbDictionary::RecordSpecification all_redis_key_value_spec[3];
 NdbDictionary::RecordSpecification primary_redis_main_field_spec[2];
 NdbDictionary::RecordSpecification all_redis_main_field_spec[7];
 
+NdbDictionary::RecordSpecification primary_redis_field_value_spec[2];
+NdbDictionary::RecordSpecification all_redis_field_value_spec[7];
+
 NdbRecord *primary_redis_main_key_record = nullptr;
 NdbRecord *all_redis_main_key_record = nullptr;
 NdbRecord *primary_redis_key_value_record = nullptr;
@@ -509,7 +512,7 @@ rondb_connect(const char *connect_string,
     }
     primary_redis_field_value_spec[0].column = field_id_col;
     primary_redis_field_value_spec[0].offset =
-      offsetof(struct redis_field_valuee, field_id);
+      offsetof(struct redis_field_value, field_id);
     primary_redis_field_value_spec[0].nullbit_byte_offset= 0;
     primary_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
 
