@@ -1117,12 +1117,67 @@ get_value_rows(std::string *response,
                Uint32 this_value_len,
                Uint32 tot_value_len)
 {
+  const NdbDictionary::Table *tab = dict->getTable("redis_key_values");
+  if (tab == nullptr)
+  {
+    ndb->closeTransaction(trans);
+    response->clear();
+    failed_create_table(response);
+    return -1;
+  }
+  struct redis_key_value row[2];
+  row[0].key_id = key_id;
+  row[1].key_id = key_id;
+  Uint32 row_index = 0;
+  for (Uint32 index = 0; index < num_rows; index++)
+  {
+    row[row_index].ordinal = index;
+    const NdbOperation *read_op = trans->readTuple(
+      primary_redis_key_value_record,
+      (const char *)&row,
+      all_redis_key_value_record,
+      (char *)&row,
+      NdbOperation::LM_CommittedRead);
+    if (read_op == nullptr)
+    {
+      ndb->closeTransaction(trans);
+      response->clear();
+      failed_get_operation(response);
+      return RONDB_INTERNAL_ERROR;
+    }
+    row_index++;
+    if (row_index == 2 || index == (num_rows - 1))
+    {
+      row_index = 0;
+      ExecType commit_type = NdbTransaction::NoCommit;
+      if (index == (num_rows - 1))
+      {
+        commit_type = NdbTransaction::Commit;
+      }
+      if (trans->execute(commit_type,
+                         NdbOperation::AbortOnError) != -1)
+      {
+        for (Uint32 i = 0; i < row_index; i++)
+        {
+          Uint32 this_value_len =
+            row[i].value[0] + (row[i].value[1] << 8);
+          response->append(&row[i].value[2], this_value_len);
+        }
+      }
+      else
+      {
+        response->clear();
+        failed_read_error(response, trans->getNdbError().code);
+        return RONDB_INTERNAL_ERROR;
+      }
+    }
+  }
   return 0;
 }
 
 int
 get_complex_key_row(std::string *response,
-                    const NdbDictionary::Dictionary *dict;
+                    const NdbDictionary::Dictionary *dict,
                     const NdbDictionary::Table *tab,
                     Ndb *ndb,
                     struct redis_main_key *row,
