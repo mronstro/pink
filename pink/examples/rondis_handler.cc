@@ -27,6 +27,43 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/Ndb.hpp>
 
+struct redis_main_key
+{
+  char key_val[MAX_KEY_VALUE_LEN + 2];
+  Uint64 key_id;
+  Uint32 expiry_date;
+  char value[INLINE_VALUE_LEN + 2];
+  Uint32 tot_value_len;
+  Uint32 num_rows;
+  Uint32 row_state;
+  Uint32 tot_key_len;
+};
+
+struct redis_key_value
+{
+  Uint64 key_id;
+  Uint32 ordinal;
+  char value[EXTENSION_VALUE_LEN];
+};
+
+struct redis_main_field
+{
+  Uint64 key_id;
+  char field_name[MAX_KEY_VALUE_LEN + 2];
+  Uint64 field_id;
+  char value[INLINE_VALUE_LEN + 2];
+  Uint32 num_value_rows;
+  Uint32 tot_value_len;
+  Uint32 tot_key_len;
+};
+
+struct redis_field_value
+{
+  Uint64 field_id;
+  Uint32 ordinal;
+  char value[EXTENSION_VALUE_LEN + 2];
+};
+
 void
 rondb_get_command(pink::RedisCmdArgsType&,
                   std::string* response,
@@ -39,6 +76,24 @@ rondb_set_command(pink::RedisCmdArgsType&,
 #define MAX_NDB_PER_CONNECTION 1
 Ndb_cluster_connection *rondb_conn[MAX_CONNECTIONS];
 Ndb *rondb_ndb[MAX_CONNECTIONS][MAX_NDB_PER_CONNECTION];
+
+NdbDictionary::RecordSpecification primary_redis_main_key_spec[1];
+NdbDictionary::RecordSpecification all_redis_main_key_spec[8];
+
+NdbDictionary::RecordSpecification primary_redis_key_value_spec[2];
+NdbDictionary::RecordSpecification all_redis_key_value_spec[3];
+
+NdbDictionary::RecordSpecification primary_redis_main_field_spec[2];
+NdbDictionary::RecordSpecification all_redis_main_field_spec[7];
+
+NdbRecord *primary_redis_main_key = nullptr;
+NdbRecord *all_redis_main_key = nullptr;
+NdbRecord *primary_redis_key_value = nullptr;
+NdbRecord *all_redis_key_value = nullptr;
+NdbRecord *primary_redis_main_field = nullptr;
+NdbRecord *all_redis_main_field = nullptr;
+NdbRecord *primary_redis_field_value = nullptr;
+NdbRecord *all_redis_field_value = nullptr;
 
 void
 append_response(std::string *response, const char *app_str, Uint32 error_code)
@@ -95,6 +150,14 @@ failed_define(std::string *response, Uint32 error_code)
                   error_code);
 }
 
+void
+failed_large_key(std::string *response)
+{
+  append_response(response,
+                  "RonDB Error: Support up to 3000 bytes long keys",
+                  0);
+}
+
 int
 rondb_connect(const char *connect_string,
               unsigned int num_connections)
@@ -129,6 +192,365 @@ rondb_connect(const char *connect_string,
         return -1;
       }
       rondb_ndb[i][j] = ndb;
+    }
+  }
+  /**
+   * Create NdbRecord's for all table accesses, they can be reused
+   * for all Ndb objects.
+   */
+  Ndb *ndb = rondb_ndb[0][0];
+  NdbDictionary::Dictionary* dict= ndb->getDictionary();
+  {
+    const NdbDictionary::Table *tab= dict->getTable("redis_main_key");
+    if (tab == nullptr)
+    {
+      printf("Kilroy XX\n");
+      return -1;
+    }
+    const NdbDictionary::Column *key_val_col = tab->getColumn("key_val");
+    const NdbDictionary::Column *key_id_col = tab->getColumn("key_id");
+    const NdbDictionary::Column *expiry_date_col =
+      tab->getColumn("expiry_date");
+    const NdbDictionary::Column *value_col =
+      tab->getColumn("value");
+    const NdbDictionary::Column *tot_value_len_col =
+      tab->getColumn("tot_value_len");
+    const NdbDictionary::Column *num_rows_col =
+      tab->getColumn("num_rows");
+    const NdbDictionary::Column *row_state_col =
+      tab->getColumn("row_state");
+    const NdbDictionary::Column *tot_key_len_col =
+      tab->getColumn("tot_key_len");
+
+    if (key_val_col == nullptr ||
+        key_id_col == nullptr ||
+        expiry_date_col == nullptr ||
+        value_col == nullptr ||
+        tot_value_len_col == nullptr ||
+        num_rows_col == nullptr ||
+        row_state_col == nullptr ||
+        tot_key_len_col == nullptr)
+    {
+      printf("Kilroy XXI\n");
+      return -1;
+    }
+
+    primary_redis_main_key_spec[0].column = key_val_col;
+    primary_redis_main_key_spec[0].offset =
+      offsetof(struct redis_main_key, key_val);
+    primary_redis_main_key_spec[0].nullbit_byte_offset= 0;
+    primary_redis_main_key_spec[0].nullbit_bit_in_byte= 0;
+    primary_redis_main_key_record =
+      dict->createRecord(tab,
+                         primary_redis_main_key_spec,
+                         1,
+                         sizeof(primary_redis_main_key_spec[0]));
+    if (primary_redis_main_key_record == nullptr)
+    {
+      printf("Kilroy XXII\n");
+      return -1;
+    }
+
+    all_redis_main_key_spec[0].column = key_val_col;
+    all_redis_main_key_spec[0].offset =
+      offsetof(struct redis_main_key, key_val);
+    all_redis_main_key_spec[0].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[1].column = key_id_col;
+    all_redis_main_key_spec[1].offset =
+      offsetof(struct redis_main_key, key_id);
+    all_redis_main_key_spec[1].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[1].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[2].column = expiry_date_col;
+    all_redis_main_key_spec[2].offset =
+      offsetof(struct redis_main_key, expiry_date);
+    all_redis_main_key_spec[2].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[2].nullbit_bit_in_byte= 1;
+
+    all_redis_main_key_spec[3].column = value_col;
+    all_redis_main_key_spec[3].offset =
+      offsetof(struct redis_main_key, value);
+    all_redis_main_key_spec[3].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[3].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[4].column = tot_value_len_col;
+    all_redis_main_key_spec[4].offset =
+      offsetof(struct redis_main_key, tot_value_len);
+    all_redis_main_key_spec[4].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[4].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[5].column = num_rows_col;
+    all_redis_main_key_spec[5].offset =
+      offsetof(struct redis_main_key, num_rows);
+    all_redis_main_key_spec[5].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[5].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[6].column = row_state_col;
+    all_redis_main_key_spec[6].offset =
+      offsetof(struct redis_main_key, row_state);
+    all_redis_main_key_spec[6].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[6].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_spec[7].column = tot_key_len_col;
+    all_redis_main_key_spec[7].offset =
+      offsetof(struct redis_main_key, tot_key_len);
+    all_redis_main_key_spec[7].nullbit_byte_offset= 0;
+    all_redis_main_key_spec[7].nullbit_bit_in_byte= 0;
+
+    all_redis_main_key_record =
+      dict->createRecord(tab,
+                         all_redis_main_key_spec,
+                         8,
+                         sizeof(all_redis_main_key_spec[0]));
+    if (all_redis_main_key_record == nullptr)
+    {
+      printf("Kilroy XXIII\n");
+      return -1;
+    }
+  }
+
+  {
+    const NdbDictionary::Table *tab= dict->getTable("redis_key_value");
+    if (tab == nullptr)
+    {
+      printf("Kilroy XXIV\n");
+      return -1;
+    }
+    const NdbDictionary::Column *key_id_col = tab->getColumn("key_id");
+    const NdbDictionary::Column *ordinal_col = tab->getColumn("ordinal");
+    const NdbDictionary::Column *value_col = tab->getColumn("value");
+    if (key_id_col == nullptr ||
+        ordinal_col == nullptr ||
+        value_col == nullptr)
+    {
+      printf("Kilroy XXV\n");
+      return -1;
+    }
+    primary_redis_key_value_spec[0].column = key_id_col;
+    primary_redis_key_value_spec[0].offset =
+      offsetof(struct redis_key_value, key_id);
+    primary_redis_key_value_spec[0].nullbit_byte_offset= 0;
+    primary_redis_key_value_spec[0].nullbit_bit_in_byte= 0;
+
+    primary_redis_key_value_spec[1].column = ordinal_col;
+    primary_redis_key_value_spec[1].offset =
+      offsetof(struct redis_key_value, ordinal);
+    primary_redis_key_value_spec[1].nullbit_byte_offset= 0;
+    primary_redis_key_value_spec[1].nullbit_bit_in_byte= 0;
+
+    primary_redis_key_value_record =
+      dict->createRecord(tab,
+                         primary_redis_key_value_spec,
+                         2,
+                         sizeof(primary_redis_key_value_spec[0]));
+    if (primary_redis_key_value_record == nullptr)
+    {
+      printf("Kilroy XXVI\n");
+      return -1;
+    }
+
+    all_redis_key_value_spec[0].column = key_id_col;
+    all_redis_key_value_spec[0].offset =
+      offsetof(struct redis_key_value, key_id);
+    all_redis_key_value_spec[0].nullbit_byte_offset= 0;
+    all_redis_key_value_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_key_value_spec[1].column = ordinal_col;
+    all_redis_key_value_spec[1].offset =
+      offsetof(struct redis_key_value, ordinal);
+    all_redis_key_value_spec[1].nullbit_byte_offset= 0;
+    all_redis_key_value_spec[1].nullbit_bit_in_byte= 0;
+
+    all_redis_key_value_spec[2].column = value_col;
+    all_redis_key_value_spec[2].offset =
+      offsetof(struct redis_key_value, value);
+    all_redis_key_value_spec[2].nullbit_byte_offset= 0;
+    all_redis_key_value_spec[2].nullbit_bit_in_byte= 0;
+
+    all_redis_key_value_record =
+      dict->createRecord(tab,
+                         all_redis_key_value_spec,
+                         3,
+                         sizeof(all_redis_key_value_spec[0]));
+    if (all_redis_key_value_record == nullptr)
+    {
+      printf("Kilroy XXVII\n");
+      return -1;
+    }
+  }
+
+  {
+    const NdbDictionary::Table *tab= dict->getTable("redis_main_field");
+    if (tab == nullptr)
+    {
+      printf("Kilroy XXVIII\n");
+      return -1;
+    }
+    const NdbDictionary::Column *key_id_id_col = tab->getColumn("key_id");
+    const NdbDictionary::Column *field_name_col =
+      tab->getColumn("field_name");
+    const NdbDictionary::Column *field_id_col =
+      tab->getColumn("field_id");
+    const NdbDictionary::Column *value_col = tab->getColumn("value");
+    const NdbDictionary::Column *num_value_rows_col =
+      tab->getColumn("num_value_rows");
+    const NdbDictionary::Column *tot_value_len_col =
+      tab->getColumn("tot_value_len");
+    const NdbDictionary::Column *tot_key_len_col =
+      tab->getColumn("tot_key_len");
+
+    if (key_id_col == nullptr ||
+        field_name_col == nullptr ||
+        field_id_col == nullptr ||
+        value_col == nullptr ||
+        num_value_rows_col == nullptr ||
+        tot_value_len_col == nullptr ||
+        tot_key_len_col == nullptr)
+    {
+      printf("Kilroy XXIX\n");
+      return -1;
+    }
+
+    primary_redis_main_field_spec[0].column = key_id_col;
+    primary_redis_main_field_spec[0].offset =
+      offsetof(struct redis_main_field, key_id);
+    primary_redis_main_field_spec[0].nullbit_byte_offset= 0;
+    primary_redis_main_field_spec[0].nullbit_bit_in_byte= 0;
+
+    primary_redis_main_field_spec[1].column = field_name_col;
+    primary_redis_main_field_spec[1].offset =
+      offsetof(struct redis_main_field, field_name);
+    primary_redis_main_field_spec[1].nullbit_byte_offset= 0;
+    primary_redis_main_field_spec[1].nullbit_bit_in_byte= 0;
+
+    primary_redis_main_field_record =
+      dict->createRecord(tab,
+                         primary_redis_main_field_spec,
+                         1,
+                         sizeof(primary_redis_main_field_spec[0]));
+    if (primary_redis_main_field_record == nullptr)
+    {
+      printf("Kilroy XXX\n");
+      return -1;
+    }
+
+    all_redis_main_field_spec[0].column = key_id_col;
+    all_redis_main_field_spec[0].offset =
+      offsetof(struct redis_main_field, key_id);
+    all_redis_main_field_spec[0].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[1].column = field_name_col;
+    all_redis_main_field_spec[1].offset =
+      offsetof(struct redis_main_field, field_name);
+    all_redis_main_field_spec[1].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[1].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[2].column = field_id_col;
+    all_redis_main_field_spec[2].offset =
+      offsetof(struct redis_main_field, field_id);
+    all_redis_main_field_spec[2].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[2].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[3].column = value_col;
+    all_redis_main_field_spec[3].offset =
+      offsetof(struct redis_main_field, value);
+    all_redis_main_field_spec[3].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[3].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[4].column = num_value_rows_col;
+    all_redis_main_field_spec[4].offset =
+      offsetof(struct redis_main_field, num_value_rows);
+    all_redis_main_field_spec[4].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[4].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[5].column = tot_value_len_col;
+    all_redis_main_field_spec[5].offset =
+      offsetof(struct redis_main_field, tot_value_len);
+    all_redis_main_field_spec[5].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[5].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_spec[6].column = tot_key_len_col;
+    all_redis_main_field_spec[6].offset =
+      offsetof(struct redis_main_field, tot_key_len);
+    all_redis_main_field_spec[6].nullbit_byte_offset= 0;
+    all_redis_main_field_spec[6].nullbit_bit_in_byte= 0;
+
+    all_redis_main_field_record =
+      dict->createRecord(tab,
+                         all_redis_main_field_spec,
+                         7,
+                         sizeof(all_redis_main_field_spec[0]));
+    if (all_redis_main_field_record == nullptr)
+    {
+      printf("Kilroy XXXI\n");
+      return -1;
+    }
+  }
+  {
+    const NdbDictionary::Table *tab= dict->getTable("redis_field_value");
+    if (tab == nullptr)
+    {
+      printf("Kilroy XXXII\n");
+      return -1;
+    }
+
+    const NdbDictionary::Column *field_id_col = tab->getColumn("field_id");
+    const NdbDictionary::Column *ordinal_col = tab->getColumn("ordinal");
+    const NdbDictionary::Column *value_col = tab->getColumn("value");
+    if (field_id_col == nullptr ||
+        ordinal_col == nullptr ||
+        value_col == nullptr)
+    {
+      printf("Kilroy XXXIII\n");
+      return -1;
+    }
+    primary_redis_field_value_spec[0].column = field_id_col;
+    primary_redis_field_value_spec[0].offset =
+      offsetof(struct redis_field_valuee, field_id);
+    primary_redis_field_value_spec[0].nullbit_byte_offset= 0;
+    primary_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+
+    primary_redis_field_value_record =
+      dict->createRecord(tab,
+                         primary_redis_field_value_spec,
+                         1,
+                         sizeof(primary_redis_field_value_spec[0]));
+    if (primary_redis_field_value_record == nullptr)
+    {
+      printf("Kilroy XXXIV\n");
+      return -1;
+    }
+
+    all_redis_field_value_spec[0].column = field_id_col;
+    all_redis_field_value_spec[0].offset =
+      offsetof(struct redis_field_value, field_id);
+    all_redis_field_value_spec[0].nullbit_byte_offset= 0;
+    all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_field_value_spec[0].column = ordinal_col;
+    all_redis_field_value_spec[0].offset =
+      offsetof(struct redis_field_value, ordinal);
+    all_redis_field_value_spec[0].nullbit_byte_offset= 0;
+    all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_field_value_spec[0].column = value_col;
+    all_redis_field_value_spec[0].offset =
+      offsetof(struct redis_field_value, value);
+    all_redis_field_value_spec[0].nullbit_byte_offset= 0;
+    all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+
+    all_redis_field_value_record =
+      dict->createRecord(tab,
+                         all_redis_field_value_spec,
+                         3,
+                         sizeof(all_redis_field_value_spec[0]));
+    if (all_redis_field_value_record == nullptr)
+    {
+      printf("Kilroy XXXV\n");
+      return -1;
     }
   }
   return 0;
@@ -190,10 +612,10 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  *
  * All Redis tables will have the same format.
  CREATE TABLE redis_main_key(
-   redis_key VARBINARY(3000) NOT NULL,
+   key_val VARBINARY(3000) NOT NULL,
    key_id BIGINT UNSIGNED,
-   expiry_date INT UNSIGNED NOT NULL,
-   redis_value VARBINARY(26500) NOT NULL,
+   expiry_date INT UNSIGNED,
+   value VARBINARY(26500) NOT NULL,
    tot_value_len INT UNSIGNED NOT NULL,
    value_rows INT UNSIGNED NOT NULL,
    row_state INT UNSIGNED NOT NULL,
@@ -269,22 +691,8 @@ rondb_redis_handler(pink::RedisCmdArgsType& argv,
  * table. The field_id is a unique identifier that is
  * referencing the redis_ext_value table.
  *
- * CREATE TABLE redis_main_hash(
- *   redis_key VARBINARY(3000) NOT NULL,
- *   hash_id BIGINT UNSIGNED,
- *   expiry_date INT UNSIGNED NOT NULL,
- *   field_rows INT UNSIGNED NOT NULL,
- *   row_state INT UNSIGNED NOT NULL,
- *   tot_key_len INT UNSIGNED NOT NULL,
- *   PRIMARY KEY (redis_key) USING HASH,
- *   UNIQUE KEY (hash_id),
- *   KEY expiry_index(expiry_date))
- *   ENGINE NDB
- *   CHARSET=latin1
- *   COMMENT="PARTITION_BALANCE=RP_BY_LDM_X_8"
- *
  * CREATE TABLE redis_main_field(
- *   hash_id BIGINT NOT NULL,
+ *   key_id BIGINT NOT NULL,
  *   field_name VARBINARY(3000) NOT NULL,
  *   field_id BIGINT UNSIGNED,
  *   value VARBINARY(26500) NOT NULL,
@@ -436,7 +844,7 @@ create_key_row(std::string *response,
   memcpy(&buf[2], key_str, key_len);
   buf[0] = key_len & 255;
   buf[1] = key_len >> 8;
-  write_op->equal("redis_key", buf);
+  write_op->equal("key_val", buf);
 
   if (key_id == 0)
   {
@@ -460,7 +868,7 @@ create_key_row(std::string *response,
   memcpy(&buf[2], value_str, value_len);
   buf[0] = value_len & 255;
   buf[1] = value_len >> 8;
-  write_op->setValue("redis_value", buf);
+  write_op->setValue("value", buf);
   {
     int ret_code = write_op->getNdbError().code;
     if (ret_code != 0)
@@ -516,7 +924,7 @@ create_key_row(std::string *response,
       return -1;
     }
     del_op->deleteTuple();
-    del_op->equal("redis_key", buf);
+    del_op->equal("key_val", buf);
     {
       int ret_code = del_op->getNdbError().code;
       if (ret_code != 0)
@@ -545,7 +953,7 @@ create_key_row(std::string *response,
       return -1;
     }
     insert_op->insertTuple();
-    insert_op->equal("redis_key", buf);
+    insert_op->equal("key_val", buf);
     insert_op->setValue("tot_value_len", value_len);
     insert_op->setValue("value_rows", value_rows);
     insert_op->setValue("tot_key_len", key_len);
@@ -602,6 +1010,54 @@ int rondb_get_key_id(const NdbDictionary::Table *tab,
   return 0;
 }
 
+#define READ_VALUE_ROWS 1
+#define RONDB_INTERNAL_ERROR 2
+#define READ_ERROR 626
+
+int
+get_simple_key_row(std::string *response,
+                   const NdbDictionary::Table *tab,
+                   Ndb *ndb,
+                   const char *key_buf,
+                   Uint32 key_len)
+{
+  NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
+  if (trans == nullptr)
+  {
+    failed_create_transaction(response);
+    return RONDB_INTERNAL_ERROR;
+  }
+  NdbOperation *read_op = trans->getNdbOperation(tab);
+  if (read_op == nullptr)
+  {
+    ndb->closeTransaction(trans);
+    failed_get_operation(response);
+    return RONDB_INTERNAL_ERROR;
+  }
+}
+
+int
+get_complex_key_row(std::string *response,
+                    const NdbDictionary::Table *tab,
+                    Ndb *ndb,
+                    const char *key_buf,
+                    Uint32 key_len)
+{
+  NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
+  if (trans == nullptr)
+  {
+    failed_create_transaction(response);
+    return RONDB_INTERNAL_ERROR;
+  }
+  NdbOperation *read_op = trans->getNdbOperation(tab);
+  if (read_op == nullptr)
+  {
+    ndb->closeTransaction(trans);
+    failed_get_operation(response);
+    return RONDB_INTERNAL_ERROR;
+  }
+}
+
 void
 rondb_get_command(pink::RedisCmdArgsType& argv,
                   std::string* response,
@@ -612,7 +1068,61 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
     return;
   }
   const char *key_str = argv[1].c_str();
-  Uint32 key_len = strlen(key_str);
+  Uint32 key_len = argv[1].size();
+  if (key_len > MAX_KEY_VALUE_LEN)
+  {
+    failed_large_key(response);
+    return;
+  }
+  Ndb *ndb = rondb_ndb[0][0];
+  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Table *tab = dict->getTable("redis_main_key");
+  if (tab == nullptr)
+  {
+    failed_create_table(response);
+    return;
+  }
+  char key_buf[MAX_KEY_VALUE_LEN + 2];
+  memcpy(&key_buf[2], key_str, key_len);
+  key_buf[0] = key_len & 255;
+  key_buf[1] = key_len >> 8;
+  {
+    int ret_code = get_simple_key_row(response,
+                                      tab,
+                                      ndb,
+                                      key_buf,
+                                      key_len);
+    if (ret_code == 0)
+    {
+      /* Row found and read, return result */
+      return;
+    }
+    else if (ret_code == READ_ERROR)
+    {
+      /* Row not found, return error */
+      return;
+    }
+    else if (ret_code == READ_VALUE_ROWS)
+    {
+      /* Row uses value rows, so more complex read is required */
+      ret_code = get_complex_key_row(response,
+                                     tab,
+                                     ndb,
+                                     key_buf,
+                                     key_len);
+      if (ret_code == 0)
+      {
+        /* Rows found and read, return result */
+        return;
+      }
+      else if (ret_code == READ_ERROR)
+      {
+        /* Row not found, return error */
+        return;
+      }
+    }
+  }
+  /* Some RonDB occurred, already created response */
   return;
 }
 
@@ -628,14 +1138,12 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
   }
   Ndb *ndb = rondb_ndb[0][0];
   const char *key_str = argv[1].c_str();
-  Uint32 key_len = strlen(key_str);
+  Uint32 key_len = argv[1].size();
   const char *value_str = argv[2].c_str();
-  Uint32 value_len = strlen(value_str);
+  Uint32 value_len = argv[2].size();
   if (key_len > MAX_KEY_VALUE_LEN)
   {
-    append_response(response,
-                    "RonDB Error: Support up to 3000 bytes long keys",
-                    0);
+    failed_large_key(response);
     return;
   }
   const NdbDictionary::Dictionary *dict = ndb->getDictionary();
