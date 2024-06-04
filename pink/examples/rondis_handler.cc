@@ -1095,6 +1095,7 @@ get_simple_key_row(std::string *response,
     response->append(buf);
     response->append((const char*)&row->value, row->tot_value_len);
     response->append("\r\n");
+    printf("Respond with %u tot_value_len, string: %s", row->tot_value_len, response->c_str());
     return 0;
   }
   int ret_code = trans->getNdbError().code;
