@@ -125,7 +125,7 @@ append_response(std::string *response, const char *app_str, Uint32 error_code)
 }
 
 void
-failed_no_such_row(std::string *response)
+failed_no_such_row_error(std::string *response)
 {
   response->append("$-1\r\n");
 }
@@ -1041,7 +1041,9 @@ get_simple_key_row(std::string *response,
                    struct redis_main_key *row,
                    Uint32 key_len)
 {
-  NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
+  NdbTransaction *trans = ndb->startTransaction(tab,
+                                                &row->key_val[0],
+                                                key_len + 2);
   if (trans == nullptr)
   {
     failed_create_transaction(response);
@@ -1053,12 +1055,12 @@ get_simple_key_row(std::string *response,
    */
 
   Uint32 mask = 0xFE;
-  const NdbOperation *read_op = trans->read_tuple(
+  const NdbOperation *read_op = trans->readTuple(
     primary_redis_main_key_record,
     (const char *)row,
     all_redis_main_key_record,
     (const char *)row,
-    NdbOperation::LM_ReadCommitted,
+    NdbOperation::LM_CommittedRead,
     mask);
   if (read_op == nullptr)
   {
@@ -1069,7 +1071,7 @@ get_simple_key_row(std::string *response,
   if (trans->execute(NdbTransaction::Commit,
                      NdbOperation::AbortOnError) != -1)
   {
-    if (row->value_rows > 0)
+    if (row->num_rows > 0)
     {
       return READ_VALUE_ROWS;
     }
@@ -1097,7 +1099,9 @@ get_complex_key_row(std::string *response,
                     struct redis_main_key *row,
                     Uint32 key_len)
 {
-  NdbTransaction *trans = ndb->startTransaction(tab, key_buf, key_len + 2);
+  NdbTransaction *trans = ndb->startTransaction(tab,
+                                                &row->key_val[0],
+                                                key_len + 2);
   if (trans == nullptr)
   {
     failed_create_transaction(response);
