@@ -1054,7 +1054,7 @@ get_simple_key_row(std::string *response,
    * except primary key column.
    */
 
-  Uint32 mask = 0xFE;
+  const Uint32 mask = 0xFE;
   const char *mask_ptr = &mask;
   const NdbOperation *read_op = trans->readTuple(
     primary_redis_main_key_record,
@@ -1169,7 +1169,7 @@ rondb_get_command(pink::RedisCmdArgsType& argv,
       ret_code = get_complex_key_row(response,
                                      tab,
                                      ndb,
-                                     key_buf,
+                                     &row_object,
                                      key_len);
       if (ret_code == 0)
       {
