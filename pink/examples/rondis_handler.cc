@@ -398,7 +398,7 @@ rondb_connect(const char *connect_string,
       printf("Kilroy XXVIII\n");
       return -1;
     }
-    const NdbDictionary::Column *key_id_id_col = tab->getColumn("key_id");
+    const NdbDictionary::Column *key_id_col = tab->getColumn("key_id");
     const NdbDictionary::Column *field_name_col =
       tab->getColumn("field_name");
     const NdbDictionary::Column *field_id_col =
@@ -1038,6 +1038,7 @@ get_simple_key_row(std::string *response,
     failed_get_operation(response);
     return RONDB_INTERNAL_ERROR;
   }
+  return 0;
 }
 
 int
@@ -1060,6 +1061,7 @@ get_complex_key_row(std::string *response,
     failed_get_operation(response);
     return RONDB_INTERNAL_ERROR;
   }
+  return 0;
 }
 
 void
