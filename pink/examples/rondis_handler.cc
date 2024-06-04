@@ -1080,7 +1080,8 @@ get_simple_key_row(std::string *response,
     return RONDB_INTERNAL_ERROR;
   }
   if (trans->execute(NdbTransaction::Commit,
-                     NdbOperation::AbortOnError) != -1)
+                     NdbOperation::AbortOnError) != -1 &&
+      read_op->getNdbError().code == 0)
   {
     if (row->num_rows > 0)
     {
@@ -1098,7 +1099,7 @@ get_simple_key_row(std::string *response,
     printf("Respond with len: %u, %u tot_value_len, string: %s, string_len: %u\n", len, row->tot_value_len, response->c_str(), response->length());
     return 0;
   }
-  int ret_code = trans->getNdbError().code;
+  int ret_code = read_op->getNdbError().code;
   if (ret_code == READ_ERROR)
   {
     failed_no_such_row_error(response);
