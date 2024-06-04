@@ -886,8 +886,7 @@ create_key_row(std::string *response,
     write_op->setValue("key_id", key_id);
   }
   write_op->setValue("tot_value_len", value_len);
-  write_op->setValue("value_rows", value_rows);
-  write_op->setValue("field_rows", field_rows);
+  write_op->setValue("num_rows", value_rows);
   write_op->setValue("tot_key_len", key_len);
   write_op->setValue("row_state", row_state);
   write_op->setValue("expiry_date", 0);
