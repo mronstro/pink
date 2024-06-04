@@ -946,7 +946,7 @@ create_key_row(std::string *response,
     ndb->startTransaction(tab, key_str, key_len);
     if (trans == nullptr)
     {
-      failed_create_transaction(response);
+      failed_create_transaction(response, ndb->getNdbError().code);
       return -1;
     }
   }
