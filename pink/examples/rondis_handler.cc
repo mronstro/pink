@@ -1428,6 +1428,6 @@ rondb_set_command(pink::RedisCmdArgsType& argv,
       return;
     }
   }
-  response->append("+OK");
+  response->append("+OK\r\n");
   return;
 }
