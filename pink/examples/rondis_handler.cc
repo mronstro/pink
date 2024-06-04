@@ -97,7 +97,7 @@ NdbDictionary::RecordSpecification primary_redis_main_field_spec[2];
 NdbDictionary::RecordSpecification all_redis_main_field_spec[7];
 
 NdbDictionary::RecordSpecification primary_redis_field_value_spec[2];
-NdbDictionary::RecordSpecification all_redis_field_value_spec[7];
+NdbDictionary::RecordSpecification all_redis_field_value_spec[3];
 
 NdbRecord *primary_redis_main_key_record = nullptr;
 NdbRecord *all_redis_main_key_record = nullptr;
@@ -566,17 +566,17 @@ rondb_connect(const char *connect_string,
     all_redis_field_value_spec[0].nullbit_byte_offset= 0;
     all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
 
-    all_redis_field_value_spec[0].column = ordinal_col;
-    all_redis_field_value_spec[0].offset =
+    all_redis_field_value_spec[1].column = ordinal_col;
+    all_redis_field_value_spec[1].offset =
       offsetof(struct redis_field_value, ordinal);
-    all_redis_field_value_spec[0].nullbit_byte_offset= 0;
-    all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+    all_redis_field_value_spec[1].nullbit_byte_offset= 0;
+    all_redis_field_value_spec[1].nullbit_bit_in_byte= 0;
 
-    all_redis_field_value_spec[0].column = value_col;
-    all_redis_field_value_spec[0].offset =
+    all_redis_field_value_spec[2].column = value_col;
+    all_redis_field_value_spec[2].offset =
       offsetof(struct redis_field_value, value);
-    all_redis_field_value_spec[0].nullbit_byte_offset= 0;
-    all_redis_field_value_spec[0].nullbit_bit_in_byte= 0;
+    all_redis_field_value_spec[2].nullbit_byte_offset= 0;
+    all_redis_field_value_spec[2].nullbit_bit_in_byte= 0;
 
     all_redis_field_value_record =
       dict->createRecord(tab,
