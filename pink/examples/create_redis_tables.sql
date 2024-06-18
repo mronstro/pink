@@ -11,7 +11,7 @@ CREATE TABLE redis_main_key(
   row_state INT UNSIGNED NOT NULL,
   tot_key_len INT UNSIGNED NOT NULL,
   PRIMARY KEY (key_val) USING HASH,
-  UNIQUE KEY (key_id),
+  UNIQUE KEY (key_id) USING HASH,
   KEY expiry_index(expiry_date))
   ENGINE NDB
   CHARSET=latin1
@@ -37,8 +37,8 @@ CREATE TABLE redis_main_field(
   num_value_rows INT UNSIGNED NOT NULL,
   tot_value_len INT UNSIGNED NOT NULL,
   tot_key_len INT UNSIGNED NOT NULL,
-  PRIMARY KEY (key_id, field_name),
-  UNIQUE KEY (field_id))
+  PRIMARY KEY (key_id, field_name) USING HASH,
+  UNIQUE KEY (field_id) USING HASH)
   ENGINE NDB
   COMMENT="NDB_TABLE=PARTITION_BALANCE=RP_BY_LDM_X_8";
 
