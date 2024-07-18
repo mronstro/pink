@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
   SignalSetup();
 
   printf("Connecting to RonDB\n");
-  rondb_connect("localhost:13060", 1);
+  rondb_connect("localhost:13000", 1);
   printf("Connected to RonDB\n");
 
   if (argc < 2) {

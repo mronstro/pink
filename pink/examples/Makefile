@@ -1,6 +1,6 @@
 CXX=g++
 LDFLAGS= -lpthread -lrt -lprotobuf
-CXXFLAGS=-O2 -std=c++11 -fno-builtin-memcmp
+CXXFLAGS=-O2 -std=c++14 -fno-builtin-memcmp
 
 .PHONY: clean all
 
@@ -22,7 +22,7 @@ SLASH_INCLUDE_DIR=$(SLASH_PATH)
 SLASH_LIBRARY=$(SLASH_PATH)/slash/lib/libslash.a
 
 RONDB_INCLUDE_DIR=$(RONDB_PATH)/include/storage/ndb
-RONDB_LIBRARY=$(RONDB_PATH)/lib/libndbclient_static.a
+RONDB_LIBRARY=$(RONDB_PATH)/lib/libndbclient.so
 
 CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(RONDB_INCLUDE_DIR)
 
@@ -65,4 +65,4 @@ myredis_srv: myredis_srv.cc rondis_handler.cc
 clean:
 	find . -name "*.[oda]" -exec rm -f {} \;
 	rm -rf ./bg_thread ./http_server ./https_server ./mydispatch_srv ./myholy_srv \
-					./myholy_srv_chandle ./myproto_cli ./redis_cli_test ./simple_http_server
+	./myholy_srv_chandle ./myproto_cli ./redis_cli_test ./simple_http_server ./myredis_srv
